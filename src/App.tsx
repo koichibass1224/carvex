@@ -1,0 +1,953 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { BarChart3, TrendingUp, Percent, Globe2, Info, AlertTriangle, LineChart } from 'lucide-react';
+
+type TabId = 'overview' | 'growth' | 'inflation';
+
+type CountryConfig = {
+  name: string;
+  wbCode: string;
+  eurostatCode: string;
+};
+
+type IndicatorData = {
+  value: number | null;
+  date: string | null;
+};
+
+type IndicatorSeries = {
+  value: number | null;
+  date: string;
+};
+
+type CountryMetrics = {
+  name: string;
+  gdp: IndicatorData;
+  growth: IndicatorData;
+  inflation: IndicatorData;
+  eurostatInflation: IndicatorData;
+};
+
+type TabButtonProps = {
+  id: TabId;
+  label: string;
+  icon: React.ReactNode;
+  isActive: boolean;
+  onClick: (id: TabId) => void;
+};
+
+type MetricTrend = 'positive' | 'negative' | 'neutral';
+
+type MetricCardProps = {
+  title: string;
+  value: string;
+  change?: string;
+  icon: React.ReactNode;
+  trend?: MetricTrend;
+};
+
+type RankingItem = {
+  name: string;
+  value: string;
+};
+
+type RankingCardProps = {
+  title: string;
+  items?: RankingItem[];
+  type?: 'default' | 'gdp' | 'growth' | 'inflation';
+};
+
+type CountrySectionProps = {
+  country: CountryMetrics;
+};
+
+type SummaryMetrics = {
+  averageGdp: number | null;
+  averageGrowth: number | null;
+  averageInflation: number | null;
+  lastUpdated?: string;
+};
+
+type LanguageOption = 'ja' | 'en';
+
+const GlobalEconomyDashboard = () => {
+  const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [countryMetrics, setCountryMetrics] = useState<CountryMetrics[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [yearOptions, setYearOptions] = useState<string[]>([]);
+  const [selectedYear, setSelectedYear] = useState<string>('');
+  const [language, setLanguage] = useState<LanguageOption>('ja');
+
+  const labels = {
+    ja: {
+      title: '経済コンディション・ダッシュボード',
+      subtitle: 'World Bank Open Data と Eurostat に基づく最新の経済指標。',
+      dataYear: 'データ年',
+      language: '言語',
+      overviewTab: '概要',
+      growthTab: '成長・生産',
+      inflationTab: 'インフレ',
+      loading: '国別データを読み込み中...',
+      error: '最新データの取得に失敗しました。時間を置いて再試行してください。',
+      overviewTitle: 'グローバル経済サマリー',
+      overviewDescription: '主要EU経済圏のGDP・成長率・物価指標を横断的に可視化します。',
+      averageGdp: '平均GDP（現行米ドル）',
+      averageGrowth: '平均GDP成長率',
+      averageInflation: '平均インフレ（CPI）',
+      yoy: '前年比',
+      lastUpdate: '最終更新',
+      gdpLeaders: 'GDP上位',
+      fastestGrowth: '成長率上位',
+      countryOverview: '国別の概要',
+      growthTitle: '成長・生産',
+      growthDescription: 'World Bank の年次GDP成長率とGDP規模を確認できます。',
+      topGdp: 'GDP最大',
+      bestGrowth: '成長率トップ',
+      momentum: '成長モメンタム',
+      gdpRanking: 'GDPランキング',
+      growthRanking: 'GDP成長率ランキング',
+      countryGrowth: '国別の成長詳細',
+      inflationTitle: 'インフレ・物価安定性',
+      inflationDescription: 'CPI（World Bank）とHICP（月次・Eurostat）を併せて表示します。',
+      highestCpi: 'CPI最高',
+      medianCpi: 'CPI中央値',
+      mostStable: '最も安定',
+      inflationRanking: 'CPIインフレランキング',
+      hicpSnapshot: 'Eurostat HICP スナップショット',
+      countryInflation: '国別のインフレ詳細',
+      worldBankIndicators: 'World Bank 指標',
+      eurostatIndicators: 'Eurostat HICP（月次）',
+      latestHicp: '最新HICP変化率',
+      referenceMonth: '対象月',
+      metricsNote: '指標は World Bank（年次）と Eurostat（月次）を統合しています。',
+      dataSources: 'データソース',
+      reportInfo: 'レポート情報',
+      lastRefreshed: '最終更新',
+      coverage: '対象指標: GDP, GDP成長率, CPI, HICP(月次)',
+      noData: 'データがありません',
+      designRules: 'Apple HIG準拠 UI デザインルール',
+      tailwindNote: 'Tailwind CSS トークン対応',
+      colorSystem: 'カラーシステム',
+      colorIntent: '落ち着いたニュートラルにアクセントを加え、データに集中しやすく。',
+      colorTokens: 'Tailwind: bg-slate-50, bg-slate-900, bg-blue-600, text-slate-900, text-white.',
+      typography: 'タイポグラフィ',
+      typographyIntent: '階層を明確にし、読みやすい行間を確保。',
+      typographyTokens: 'Tailwind: text-4xl font-semibold tracking-tight, text-base leading-6, text-sm text-slate-600.',
+      spacing: '余白・間隔',
+      spacingIntent: '十分なパディングと間隔で情報をスキャンしやすく。',
+      spacingTokens: 'Tailwind: p-6, p-8, gap-6, mt-16.',
+      radius: '角丸',
+      radiusIntent: 'iOSのカード表現に近い柔らかさで親しみやすく。',
+      radiusTokens: 'Tailwind: rounded-xl for cards, rounded-full for badges.',
+      shadow: '影の効果',
+      shadowIntent: '視認性を高める控えめな階層表現。',
+      shadowTokens: 'Tailwind: shadow-sm, shadow-lg shadow-blue-500/30 for active tabs.',
+      components: 'UIコンポーネント',
+      componentsIntent: 'カード・タブ・バッジで概要と詳細の階層を明確化。',
+      componentsTokens: 'Tailwind: rounded-xl border border-slate-100, px-6 py-3, text-sm font-medium.',
+      accessibility: 'アクセシビリティ',
+      accessibilityIntent: 'コントラストと可読性、フォーカス視認性を確保。',
+      accessibilityTokens: 'Tailwind: text-slate-900 on bg-slate-50, focus-visible:ring-2 ring-blue-500.',
+    },
+    en: {
+      title: 'Economic Conditions Dashboard',
+      subtitle: 'Live economic indicators sourced from World Bank Open Data and Eurostat.',
+      dataYear: 'Data year',
+      language: 'Language',
+      overviewTab: 'Overview',
+      growthTab: 'Growth & Output',
+      inflationTab: 'Inflation',
+      loading: 'Loading country data...',
+      error: 'Failed to load live data. Please retry later.',
+      overviewTitle: 'Global Economic Pulse',
+      overviewDescription: 'A harmonized snapshot of GDP, growth, and inflation metrics across major EU economies.',
+      averageGdp: 'Average GDP (current US$)',
+      averageGrowth: 'Average GDP Growth',
+      averageInflation: 'Average Inflation (CPI)',
+      yoy: 'YoY',
+      lastUpdate: 'Last update',
+      gdpLeaders: 'GDP Leaders',
+      fastestGrowth: 'Fastest Growth',
+      countryOverview: 'Country-by-Country Overview',
+      growthTitle: 'Growth & Output',
+      growthDescription: 'Annual GDP growth and current GDP size from the World Bank database.',
+      topGdp: 'Top GDP',
+      bestGrowth: 'Best Growth',
+      momentum: 'Momentum Watch',
+      gdpRanking: 'GDP Ranking',
+      growthRanking: 'GDP Growth Ranking',
+      countryGrowth: 'Country-by-Country Growth Detail',
+      inflationTitle: 'Inflation & Price Stability',
+      inflationDescription: 'Combined view of CPI inflation (World Bank) and monthly HICP (Eurostat).',
+      highestCpi: 'Highest CPI',
+      medianCpi: 'Median CPI',
+      mostStable: 'Most Stable',
+      inflationRanking: 'CPI Inflation Ranking',
+      hicpSnapshot: 'Eurostat HICP Snapshot',
+      countryInflation: 'Country-by-Country Inflation Detail',
+      worldBankIndicators: 'World Bank Indicators',
+      eurostatIndicators: 'Eurostat HICP (monthly %)',
+      latestHicp: 'Latest HICP change',
+      referenceMonth: 'Reference month',
+      metricsNote: 'Metrics are compiled from World Bank (annual) and Eurostat (monthly) datasets.',
+      dataSources: 'Data Sources',
+      reportInfo: 'Report Information',
+      lastRefreshed: 'Last Refreshed',
+      coverage: 'Coverage: GDP, GDP Growth, CPI Inflation, HICP Monthly Rate',
+      noData: 'No data available',
+      designRules: 'Apple HIG-aligned UI Design Rules',
+      tailwindNote: 'Mapped to Tailwind CSS tokens',
+      colorSystem: 'Color System',
+      colorIntent: 'Use subdued neutrals with a single accent to keep focus on data.',
+      colorTokens: 'Tailwind: bg-slate-50, bg-slate-900, bg-blue-600, text-slate-900, text-white.',
+      typography: 'Typography',
+      typographyIntent: 'Clear hierarchy with comfortable line height for long-form data.',
+      typographyTokens: 'Tailwind: text-4xl font-semibold tracking-tight, text-base leading-6, text-sm text-slate-600.',
+      spacing: 'Spacing',
+      spacingIntent: 'Generous padding and consistent gaps to support scanning.',
+      spacingTokens: 'Tailwind: p-6, p-8, gap-6, mt-16.',
+      radius: 'Border Radius',
+      radiusIntent: 'Soft rounding to mimic iOS card surfaces and improve approachability.',
+      radiusTokens: 'Tailwind: rounded-xl for cards, rounded-full for badges.',
+      shadow: 'Shadow',
+      shadowIntent: 'Subtle elevation cues without overwhelming data.',
+      shadowTokens: 'Tailwind: shadow-sm, shadow-lg shadow-blue-500/30 for active tabs.',
+      components: 'UI Components',
+      componentsIntent: 'Cards, tabs, and badges emphasize summary and details layers.',
+      componentsTokens: 'Tailwind: rounded-xl border border-slate-100, px-6 py-3, text-sm font-medium.',
+      accessibility: 'Accessibility',
+      accessibilityIntent: 'Maintain contrast, readable sizes, and clear focus states.',
+      accessibilityTokens: 'Tailwind: text-slate-900 on bg-slate-50, focus-visible:ring-2 ring-blue-500.',
+    }
+  } as const;
+
+  const t = labels[language];
+
+  const countries: CountryConfig[] = [
+    { name: 'Germany', wbCode: 'DE', eurostatCode: 'DE' },
+    { name: 'France', wbCode: 'FR', eurostatCode: 'FR' },
+    { name: 'Italy', wbCode: 'IT', eurostatCode: 'IT' },
+    { name: 'Spain', wbCode: 'ES', eurostatCode: 'ES' },
+    { name: 'Netherlands', wbCode: 'NL', eurostatCode: 'NL' },
+  ];
+
+  // Design System Configuration (Apple HIG aligned)
+  const colors = {
+    primary: {
+      50: 'bg-blue-50',
+      100: 'bg-blue-100',
+      500: 'bg-blue-500',
+      600: 'bg-blue-600',
+      700: 'bg-blue-700',
+    },
+    secondary: {
+      50: 'bg-slate-50',
+      100: 'bg-slate-100',
+      200: 'bg-slate-200',
+      800: 'bg-slate-800',
+      900: 'bg-slate-900',
+    },
+    success: {
+      50: 'bg-emerald-50',
+      100: 'bg-emerald-100',
+      600: 'bg-emerald-600',
+    },
+    warning: {
+      50: 'bg-amber-50',
+      100: 'bg-amber-100',
+      600: 'bg-amber-600',
+    },
+    danger: {
+      50: 'bg-rose-50',
+      100: 'bg-rose-100',
+      600: 'bg-rose-600',
+    }
+  };
+
+  const typography = {
+    display: 'text-4xl font-semibold tracking-tight',
+    h1: 'text-3xl font-semibold tracking-tight',
+    h2: 'text-2xl font-semibold tracking-tight',
+    h3: 'text-xl font-semibold',
+    h4: 'text-lg font-medium',
+    body: 'text-base leading-6',
+    caption: 'text-sm text-slate-600',
+    small: 'text-xs text-slate-500',
+  };
+
+  const spacing = {
+    xs: 'p-2',
+    sm: 'p-4',
+    md: 'p-6',
+    lg: 'p-8',
+    xl: 'p-12',
+  };
+
+  const borderRadius = {
+    sm: 'rounded-lg',
+    md: 'rounded-xl',
+    lg: 'rounded-2xl',
+    full: 'rounded-full',
+  };
+
+  const shadows = {
+    sm: 'shadow-sm',
+    md: 'shadow-md',
+    lg: 'shadow-lg',
+    xl: 'shadow-xl',
+  };
+
+  const formatNumber = (value: number | null | undefined, options: Intl.NumberFormatOptions = {}) => {
+    if (value === null || value === undefined || Number.isNaN(value)) {
+      return 'N/A';
+    }
+    return new Intl.NumberFormat('en-US', options).format(value);
+  };
+
+  const fetchWorldBankSeries = async (countryCode: string, indicator: string): Promise<IndicatorSeries[]> => {
+    const response = await fetch(
+      `https://api.worldbank.org/v2/country/${countryCode}/indicator/${indicator}?format=json`
+    );
+    const payload = await response.json();
+    const rows = (payload?.[1] ?? []) as IndicatorSeries[];
+    return rows.filter((entry) => entry?.date);
+  };
+
+  const fetchEurostatInflation = async (geoCode: string, year?: string): Promise<IndicatorData> => {
+    const response = await fetch(
+      `https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_manr?geo=${geoCode}&coicop=CP00&unit=RCH_M`
+    );
+    const payload = await response.json();
+    const timeIndex = (payload?.dimension?.time?.category?.index ?? {}) as Record<string, number>;
+    const valueIndex = (payload?.value ?? {}) as Record<number, number>;
+    const timeKeys = Object.keys(timeIndex);
+    const filteredKeys = year ? timeKeys.filter((key) => key.startsWith(year)) : timeKeys;
+    const latestTime = filteredKeys.sort().at(-1);
+    const latestPosition = latestTime ? timeIndex[latestTime] : null;
+    const value = latestPosition !== null ? valueIndex[latestPosition] ?? null : null;
+    return { value, date: latestTime };
+  };
+
+  const pickIndicatorForYear = (series: IndicatorSeries[], year?: string): IndicatorData => {
+    if (!series.length) {
+      return { value: null, date: null };
+    }
+    const sorted = [...series].sort((a, b) => Number(b.date) - Number(a.date));
+    if (year) {
+      const match = sorted.find((entry) => entry.date === year);
+      return match ? { value: match.value ?? null, date: match.date } : { value: null, date: year };
+    }
+    const latest = sorted.find((entry) => entry.value !== null);
+    return latest ? { value: latest.value ?? null, date: latest.date } : { value: null, date: null };
+  };
+
+  useEffect(() => {
+    const loadMetrics = async () => {
+      try {
+        setIsLoading(true);
+        setErrorMessage('');
+        const results = await Promise.all(
+          countries.map(async (country) => {
+            const [gdpSeries, growthSeries, inflationSeries] = await Promise.all([
+              fetchWorldBankSeries(country.wbCode, 'NY.GDP.MKTP.CD'),
+              fetchWorldBankSeries(country.wbCode, 'NY.GDP.MKTP.KD.ZG'),
+              fetchWorldBankSeries(country.wbCode, 'FP.CPI.TOTL.ZG'),
+            ]);
+            const year = selectedYear || undefined;
+            const gdp = pickIndicatorForYear(gdpSeries, year);
+            const growth = pickIndicatorForYear(growthSeries, year);
+            const inflation = pickIndicatorForYear(inflationSeries, year);
+            const eurostatInflation = await fetchEurostatInflation(country.eurostatCode, year);
+
+            return {
+              name: country.name,
+              gdp,
+              growth,
+              inflation,
+              eurostatInflation,
+            };
+          })
+        );
+        if (!yearOptions.length && results.length) {
+          const available = await fetchWorldBankSeries(countries[0].wbCode, 'NY.GDP.MKTP.CD');
+          const uniqueYears = Array.from(new Set(available.map((entry) => entry.date))).sort((a, b) => Number(b) - Number(a));
+          setYearOptions(uniqueYears.slice(0, 10));
+          if (!selectedYear && uniqueYears.length) {
+            setSelectedYear(uniqueYears[0]);
+          }
+        }
+        setCountryMetrics(results);
+      } catch (error) {
+        setErrorMessage('Failed to load live data. Please retry later.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadMetrics();
+  }, [selectedYear]);
+
+  const summary = useMemo<SummaryMetrics | null>(() => {
+    if (!countryMetrics.length) {
+      return null;
+    }
+    const isNumber = (value: number | null): value is number => value !== null;
+    const gdpValues = countryMetrics.map((country) => country.gdp.value).filter(isNumber);
+    const growthValues = countryMetrics.map((country) => country.growth.value).filter(isNumber);
+    const inflationValues = countryMetrics.map((country) => country.inflation.value).filter(isNumber);
+    const average = (values: number[]) => (values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null);
+
+    return {
+      averageGdp: average(gdpValues),
+      averageGrowth: average(growthValues),
+      averageInflation: average(inflationValues),
+      lastUpdated: countryMetrics.map((country) => country.gdp.date).filter(Boolean).sort().at(-1),
+    };
+  }, [countryMetrics]);
+
+  const TabButton = ({ id, label, icon, isActive, onClick }: TabButtonProps) => (
+    <button
+      onClick={() => onClick(id)}
+      className={`
+        flex items-center gap-3 px-6 py-3 rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2
+        ${isActive 
+          ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' 
+          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+        }
+      `}
+      role="tab"
+      aria-selected={isActive}
+    >
+      {icon}
+      <span>{label}</span>
+    </button>
+  );
+
+  const MetricCard = ({ title, value, change, icon, trend = 'neutral' }: MetricCardProps) => {
+    const trendColors = {
+      positive: 'text-emerald-600 bg-emerald-50',
+      negative: 'text-rose-600 bg-rose-50',
+      neutral: 'text-slate-600 bg-slate-50'
+    };
+
+    return (
+      <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+        <div className="flex items-center justify-between mb-3">
+          <div className={`${colors.primary[100]} ${borderRadius.sm} p-2`}>
+            {icon}
+          </div>
+          {change && (
+            <span className={`px-2 py-1 rounded-full text-sm font-medium ${trendColors[trend]}`}>
+              {change}
+            </span>
+          )}
+        </div>
+        <h3 className={`${typography.caption} mb-1`}>{title}</h3>
+        <p className={`${typography.h2} text-slate-900`}>{value}</p>
+      </div>
+    );
+  };
+
+  const RankingCard = ({ title, items = [], type = 'default' }: RankingCardProps) => (
+    <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+      <h3 className={`${typography.h4} text-slate-900 mb-4`}>{title}</h3>
+      <div className="space-y-3">
+        {items && items.length > 0 ? items.map((item, index) => (
+          <div key={index} className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`w-6 h-6 ${colors.primary[500]} ${borderRadius.full} flex items-center justify-center text-white text-sm font-medium`}>
+                {index + 1}
+              </div>
+              <span className={`${typography.body} text-slate-900`}>{item.name}</span>
+            </div>
+            <div className="text-right">
+              {type === 'gdp' && (
+                <p className={`${typography.body} font-medium text-slate-900`}>{item.value}</p>
+              )}
+              {type === 'growth' && (
+                <p className={`${typography.body} font-medium ${item.value.startsWith('-') ? 'text-rose-600' : 'text-emerald-600'}`}>{item.value}</p>
+              )}
+              {type === 'inflation' && (
+                <p className={`${typography.body} font-medium text-amber-600`}>{item.value}</p>
+              )}
+            </div>
+          </div>
+        )) : (
+          <div className="text-center text-slate-500 py-4">
+            <p className={typography.caption}>{t.noData}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const CountrySection = ({ country }: CountrySectionProps) => (
+    <div className="mb-8">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <h3 className={`${typography.h3} text-slate-900`}>{country.name}</h3>
+        <div className="flex items-center gap-4">
+          <span className={`${typography.body} text-slate-600`}>
+            GDP: {formatNumber(country.gdp.value, { notation: 'compact' })}
+          </span>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+            country.growth.value !== null && country.growth.value < 0 ? 'text-rose-600 bg-rose-50' : 'text-emerald-600 bg-emerald-50'
+          }`}>
+            {formatNumber(country.growth.value, { maximumFractionDigits: 1 })}%
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+          <h4 className={`${typography.h4} text-slate-900 mb-3`}>{t.worldBankIndicators}</h4>
+          <div className="space-y-2">
+            <p className={`${typography.body} text-slate-700`}>
+              GDP (current US$): <span className="font-medium text-slate-900">{formatNumber(country.gdp.value, { notation: 'compact' })}</span>
+            </p>
+            <p className={`${typography.body} text-slate-700`}>
+              GDP Growth (annual %): <span className="font-medium text-slate-900">{formatNumber(country.growth.value, { maximumFractionDigits: 1 })}%</span>
+            </p>
+            <p className={`${typography.body} text-slate-700`}>
+              CPI Inflation (annual %): <span className="font-medium text-slate-900">{formatNumber(country.inflation.value, { maximumFractionDigits: 1 })}%</span>
+            </p>
+          </div>
+        </div>
+        <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+          <h4 className={`${typography.h4} text-slate-900 mb-3`}>{t.eurostatIndicators}</h4>
+          <div className="space-y-2">
+            <p className={`${typography.body} text-slate-700`}>
+              {t.latestHicp}: <span className="font-medium text-slate-900">{formatNumber(country.eurostatInflation.value, { maximumFractionDigits: 1 })}%</span>
+            </p>
+            <p className={`${typography.caption} text-slate-500`}>
+              {t.referenceMonth}: {country.eurostatInflation.date || 'N/A'}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className={`mt-4 ${colors.warning[50]} border border-amber-200 ${borderRadius.sm} ${spacing.sm}`}>
+        <div className="flex items-center gap-2">
+          <Info className="w-4 h-4 text-amber-600" />
+          <span className={`${typography.caption} text-amber-800`}>
+            {t.metricsNote}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const rankingData = useMemo<{ gdp: RankingItem[]; growth: RankingItem[]; inflation: RankingItem[] }>(() => {
+    if (!countryMetrics.length) {
+      return { gdp: [], growth: [], inflation: [] };
+    }
+
+    const gdp = [...countryMetrics]
+      .filter((country) => country.gdp.value !== null)
+      .sort((a, b) => b.gdp.value - a.gdp.value)
+      .map((country) => ({
+        name: country.name,
+        value: `${formatNumber(country.gdp.value, { notation: 'compact' })}`,
+      }));
+
+    const growth = [...countryMetrics]
+      .filter((country) => country.growth.value !== null)
+      .sort((a, b) => b.growth.value - a.growth.value)
+      .map((country) => ({
+        name: country.name,
+        value: `${formatNumber(country.growth.value, { maximumFractionDigits: 1 })}%`,
+      }));
+
+    const inflation = [...countryMetrics]
+      .filter((country) => country.inflation.value !== null)
+      .sort((a, b) => b.inflation.value - a.inflation.value)
+      .map((country) => ({
+        name: country.name,
+        value: `${formatNumber(country.inflation.value, { maximumFractionDigits: 1 })}%`,
+      }));
+
+    return { gdp, growth, inflation };
+  }, [countryMetrics]);
+
+  const renderTabContent = () => {
+    if (isLoading) {
+      return (
+        <div className="text-center text-slate-500 py-8">
+          <p className={typography.body}>{t.loading}</p>
+        </div>
+      );
+    }
+
+    if (errorMessage) {
+      return (
+        <div className={`${colors.danger[50]} border border-rose-200 ${borderRadius.md} ${spacing.md} text-rose-700`}>
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4" />
+            <p className={typography.body}>{errorMessage || t.error}</p>
+          </div>
+        </div>
+      );
+    }
+
+    switch (activeTab) {
+      case 'overview':
+        return (
+          <div>
+            <div className="mb-8">
+              <h2 className={`${typography.h1} text-slate-900 mb-2`}>{t.overviewTitle}</h2>
+              <p className={`${typography.body} text-slate-600 mb-6`}>
+                {t.overviewDescription}
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <MetricCard
+                  title={t.averageGdp}
+                  value={summary ? formatNumber(summary.averageGdp, { notation: 'compact' }) : 'N/A'}
+                  icon={<Globe2 className="w-5 h-5 text-blue-600" />}
+                />
+                <MetricCard
+                  title={t.averageGrowth}
+                  value={summary ? `${formatNumber(summary.averageGrowth, { maximumFractionDigits: 1 })}%` : 'N/A'}
+                  change={t.yoy}
+                  trend="positive"
+                  icon={<TrendingUp className="w-5 h-5 text-blue-600" />}
+                />
+                <MetricCard
+                  title={t.averageInflation}
+                  value={summary ? `${formatNumber(summary.averageInflation, { maximumFractionDigits: 1 })}%` : 'N/A'}
+                  change={summary?.lastUpdated ? `${t.lastUpdate} ${summary.lastUpdated}` : ''}
+                  trend="neutral"
+                  icon={<Percent className="w-5 h-5 text-blue-600" />}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <RankingCard
+                  title={t.gdpLeaders}
+                  items={rankingData.gdp.slice(0, 3)}
+                  type="gdp"
+                />
+                <RankingCard
+                  title={t.fastestGrowth}
+                  items={rankingData.growth.slice(0, 3)}
+                  type="growth"
+                />
+              </div>
+            </div>
+
+            <div>
+              <h3 className={`${typography.h2} text-slate-900 mb-6`}>{t.countryOverview}</h3>
+              {countryMetrics.map((country, index) => (
+                <CountrySection key={index} country={country} />
+              ))}
+            </div>
+          </div>
+        );
+
+      case 'growth':
+        return (
+          <div>
+            <div className="mb-8">
+              <h2 className={`${typography.h1} text-slate-900 mb-2`}>{t.growthTitle}</h2>
+              <p className={`${typography.body} text-slate-600 mb-6`}>
+                {t.growthDescription}
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <MetricCard
+                  title={t.topGdp}
+                  value={rankingData.gdp[0]?.value || 'N/A'}
+                  change={rankingData.gdp[0]?.name || 'N/A'}
+                  trend="positive"
+                  icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
+                />
+                <MetricCard
+                  title={t.bestGrowth}
+                  value={rankingData.growth[0]?.value || 'N/A'}
+                  change={rankingData.growth[0]?.name || 'N/A'}
+                  trend="positive"
+                  icon={<TrendingUp className="w-5 h-5 text-blue-600" />}
+                />
+                <MetricCard
+                  title={t.momentum}
+                  value={rankingData.growth[1]?.value || 'N/A'}
+                  change={rankingData.growth[1]?.name || 'N/A'}
+                  trend="neutral"
+                  icon={<LineChart className="w-5 h-5 text-blue-600" />}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <RankingCard
+                  title={t.gdpRanking}
+                  items={rankingData.gdp}
+                  type="gdp"
+                />
+                <RankingCard
+                  title={t.growthRanking}
+                  items={rankingData.growth}
+                  type="growth"
+                />
+              </div>
+            </div>
+
+            <div>
+              <h3 className={`${typography.h2} text-slate-900 mb-6`}>{t.countryGrowth}</h3>
+              {countryMetrics.map((country, index) => (
+                <CountrySection key={index} country={country} />
+              ))}
+            </div>
+          </div>
+        );
+
+      case 'inflation':
+        return (
+          <div>
+            <div className="mb-8">
+              <h2 className={`${typography.h1} text-slate-900 mb-2`}>{t.inflationTitle}</h2>
+              <p className={`${typography.body} text-slate-600 mb-6`}>
+                {t.inflationDescription}
+              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <MetricCard
+                  title={t.highestCpi}
+                  value={rankingData.inflation[0]?.value || 'N/A'}
+                  change={rankingData.inflation[0]?.name || 'N/A'}
+                  trend="negative"
+                  icon={<Percent className="w-5 h-5 text-blue-600" />}
+                />
+                <MetricCard
+                  title={t.medianCpi}
+                  value={rankingData.inflation[2]?.value || 'N/A'}
+                  change={rankingData.inflation[2]?.name || 'N/A'}
+                  trend="neutral"
+                  icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
+                />
+                <MetricCard
+                  title={t.mostStable}
+                  value={rankingData.inflation.at(-1)?.value || 'N/A'}
+                  change={rankingData.inflation.at(-1)?.name || 'N/A'}
+                  trend="positive"
+                  icon={<TrendingUp className="w-5 h-5 text-blue-600" />}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <RankingCard
+                  title={t.inflationRanking}
+                  items={rankingData.inflation}
+                  type="inflation"
+                />
+                <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+                  <h3 className={`${typography.h4} text-slate-900 mb-4`}>{t.hicpSnapshot}</h3>
+                  <div className="space-y-3">
+                    {countryMetrics.map((country) => (
+                      <div key={country.name} className="flex items-center justify-between">
+                        <span className={`${typography.body} text-slate-900`}>{country.name}</span>
+                        <span className={`${typography.body} font-medium text-amber-600`}>
+                          {formatNumber(country.eurostatInflation.value, { maximumFractionDigits: 1 })}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h3 className={`${typography.h2} text-slate-900 mb-6`}>{t.countryInflation}</h3>
+              {countryMetrics.map((country, index) => (
+                <CountrySection key={index} country={country} />
+              ))}
+            </div>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      {/* Header */}
+      <header className={`${colors.secondary[900]} text-white ${spacing.lg}`}>
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className={`${typography.display} mb-4`}>{t.title}</h1>
+              <p className={`${typography.body} opacity-90`}>
+                {t.subtitle}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <label htmlFor="year-select" className="text-sm font-medium text-white/80">
+                {t.dataYear}
+              </label>
+              <select
+                id="year-select"
+                value={selectedYear}
+                onChange={(event) => setSelectedYear(event.target.value)}
+                className="rounded-lg bg-slate-800/70 border border-slate-600 text-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                {yearOptions.length ? (
+                  yearOptions.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))
+                ) : (
+                  <option value="">Loading...</option>
+                )}
+              </select>
+              <label htmlFor="language-select" className="text-sm font-medium text-white/80">
+                {t.language}
+              </label>
+              <select
+                id="language-select"
+                value={language}
+                onChange={(event) => setLanguage(event.target.value as LanguageOption)}
+                className="rounded-lg bg-slate-800/70 border border-slate-600 text-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                <option value="ja">日本語</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Navigation Tabs */}
+      <nav className={`${colors.secondary[50]} border-b border-slate-200 ${spacing.md}`} role="tablist">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex gap-2 overflow-x-auto">
+            <TabButton
+              id="overview"
+              label={t.overviewTab}
+              icon={<Globe2 className="w-5 h-5" />}
+              isActive={activeTab === 'overview'}
+              onClick={setActiveTab}
+            />
+            <TabButton
+              id="growth"
+              label={t.growthTab}
+              icon={<TrendingUp className="w-5 h-5" />}
+              isActive={activeTab === 'growth'}
+              onClick={setActiveTab}
+            />
+            <TabButton
+              id="inflation"
+              label={t.inflationTab}
+              icon={<Percent className="w-5 h-5" />}
+              isActive={activeTab === 'inflation'}
+              onClick={setActiveTab}
+            />
+          </div>
+        </div>
+      </nav>
+
+      {/* Main Content */}
+      <main className={`max-w-7xl mx-auto ${spacing.lg}`} role="tabpanel">
+        {renderTabContent()}
+
+        <section className="mt-16">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className={`${typography.h2} text-slate-900`}>{t.designRules}</h2>
+            <span className={`${typography.caption} text-slate-500`}>{t.tailwindNote}</span>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.colorSystem}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.colorIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.colorTokens}
+              </p>
+            </div>
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.typography}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.typographyIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.typographyTokens}
+              </p>
+            </div>
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.spacing}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.spacingIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.spacingTokens}
+              </p>
+            </div>
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.radius}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.radiusIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.radiusTokens}
+              </p>
+            </div>
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.shadow}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.shadowIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.shadowTokens}
+              </p>
+            </div>
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.components}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.componentsIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.componentsTokens}
+              </p>
+            </div>
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.accessibility}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.accessibilityIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.accessibilityTokens}
+              </p>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      {/* Footer */}
+      <footer className={`${colors.secondary[100]} border-t border-slate-200 ${spacing.lg} mt-16`}>
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+              <h3 className={`${typography.h4} text-slate-900 mb-4`}>{t.dataSources}</h3>
+              <ul className={`${typography.caption} space-y-2`}>
+                <li>• World Bank Open Data API</li>
+                <li>• Eurostat Dissemination API</li>
+              </ul>
+            </div>
+            <div>
+              <h3 className={`${typography.h4} text-slate-900 mb-4`}>{t.reportInfo}</h3>
+              <p className={`${typography.caption} mb-2`}>
+                {t.lastRefreshed}: {summary?.lastUpdated || 'N/A'}
+              </p>
+              <p className={`${typography.caption}`}>
+                {t.coverage}
+              </p>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+};
+
+export default GlobalEconomyDashboard;
