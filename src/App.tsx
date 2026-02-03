@@ -67,6 +67,8 @@ type SummaryMetrics = {
   lastUpdated?: string;
 };
 
+type LanguageOption = 'ja' | 'en';
+
 const GlobalEconomyDashboard = () => {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [countryMetrics, setCountryMetrics] = useState<CountryMetrics[]>([]);
@@ -74,6 +76,152 @@ const GlobalEconomyDashboard = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [yearOptions, setYearOptions] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>('');
+  const [language, setLanguage] = useState<LanguageOption>('ja');
+
+  const labels = {
+    ja: {
+      title: '経済コンディション・ダッシュボード',
+      subtitle: 'World Bank Open Data と Eurostat に基づく最新の経済指標。',
+      dataYear: 'データ年',
+      language: '言語',
+      overviewTab: '概要',
+      growthTab: '成長・生産',
+      inflationTab: 'インフレ',
+      loading: '国別データを読み込み中...',
+      error: '最新データの取得に失敗しました。時間を置いて再試行してください。',
+      overviewTitle: 'グローバル経済サマリー',
+      overviewDescription: '主要EU経済圏のGDP・成長率・物価指標を横断的に可視化します。',
+      averageGdp: '平均GDP（現行米ドル）',
+      averageGrowth: '平均GDP成長率',
+      averageInflation: '平均インフレ（CPI）',
+      yoy: '前年比',
+      lastUpdate: '最終更新',
+      gdpLeaders: 'GDP上位',
+      fastestGrowth: '成長率上位',
+      countryOverview: '国別の概要',
+      growthTitle: '成長・生産',
+      growthDescription: 'World Bank の年次GDP成長率とGDP規模を確認できます。',
+      topGdp: 'GDP最大',
+      bestGrowth: '成長率トップ',
+      momentum: '成長モメンタム',
+      gdpRanking: 'GDPランキング',
+      growthRanking: 'GDP成長率ランキング',
+      countryGrowth: '国別の成長詳細',
+      inflationTitle: 'インフレ・物価安定性',
+      inflationDescription: 'CPI（World Bank）とHICP（月次・Eurostat）を併せて表示します。',
+      highestCpi: 'CPI最高',
+      medianCpi: 'CPI中央値',
+      mostStable: '最も安定',
+      inflationRanking: 'CPIインフレランキング',
+      hicpSnapshot: 'Eurostat HICP スナップショット',
+      countryInflation: '国別のインフレ詳細',
+      worldBankIndicators: 'World Bank 指標',
+      eurostatIndicators: 'Eurostat HICP（月次）',
+      latestHicp: '最新HICP変化率',
+      referenceMonth: '対象月',
+      metricsNote: '指標は World Bank（年次）と Eurostat（月次）を統合しています。',
+      dataSources: 'データソース',
+      reportInfo: 'レポート情報',
+      lastRefreshed: '最終更新',
+      coverage: '対象指標: GDP, GDP成長率, CPI, HICP(月次)',
+      noData: 'データがありません',
+      designRules: 'Apple HIG準拠 UI デザインルール',
+      tailwindNote: 'Tailwind CSS トークン対応',
+      colorSystem: 'カラーシステム',
+      colorIntent: '落ち着いたニュートラルにアクセントを加え、データに集中しやすく。',
+      colorTokens: 'Tailwind: bg-slate-50, bg-slate-900, bg-blue-600, text-slate-900, text-white.',
+      typography: 'タイポグラフィ',
+      typographyIntent: '階層を明確にし、読みやすい行間を確保。',
+      typographyTokens: 'Tailwind: text-4xl font-semibold tracking-tight, text-base leading-6, text-sm text-slate-600.',
+      spacing: '余白・間隔',
+      spacingIntent: '十分なパディングと間隔で情報をスキャンしやすく。',
+      spacingTokens: 'Tailwind: p-6, p-8, gap-6, mt-16.',
+      radius: '角丸',
+      radiusIntent: 'iOSのカード表現に近い柔らかさで親しみやすく。',
+      radiusTokens: 'Tailwind: rounded-xl for cards, rounded-full for badges.',
+      shadow: '影の効果',
+      shadowIntent: '視認性を高める控えめな階層表現。',
+      shadowTokens: 'Tailwind: shadow-sm, shadow-lg shadow-blue-500/30 for active tabs.',
+      components: 'UIコンポーネント',
+      componentsIntent: 'カード・タブ・バッジで概要と詳細の階層を明確化。',
+      componentsTokens: 'Tailwind: rounded-xl border border-slate-100, px-6 py-3, text-sm font-medium.',
+      accessibility: 'アクセシビリティ',
+      accessibilityIntent: 'コントラストと可読性、フォーカス視認性を確保。',
+      accessibilityTokens: 'Tailwind: text-slate-900 on bg-slate-50, focus-visible:ring-2 ring-blue-500.',
+    },
+    en: {
+      title: 'Economic Conditions Dashboard',
+      subtitle: 'Live economic indicators sourced from World Bank Open Data and Eurostat.',
+      dataYear: 'Data year',
+      language: 'Language',
+      overviewTab: 'Overview',
+      growthTab: 'Growth & Output',
+      inflationTab: 'Inflation',
+      loading: 'Loading country data...',
+      error: 'Failed to load live data. Please retry later.',
+      overviewTitle: 'Global Economic Pulse',
+      overviewDescription: 'A harmonized snapshot of GDP, growth, and inflation metrics across major EU economies.',
+      averageGdp: 'Average GDP (current US$)',
+      averageGrowth: 'Average GDP Growth',
+      averageInflation: 'Average Inflation (CPI)',
+      yoy: 'YoY',
+      lastUpdate: 'Last update',
+      gdpLeaders: 'GDP Leaders',
+      fastestGrowth: 'Fastest Growth',
+      countryOverview: 'Country-by-Country Overview',
+      growthTitle: 'Growth & Output',
+      growthDescription: 'Annual GDP growth and current GDP size from the World Bank database.',
+      topGdp: 'Top GDP',
+      bestGrowth: 'Best Growth',
+      momentum: 'Momentum Watch',
+      gdpRanking: 'GDP Ranking',
+      growthRanking: 'GDP Growth Ranking',
+      countryGrowth: 'Country-by-Country Growth Detail',
+      inflationTitle: 'Inflation & Price Stability',
+      inflationDescription: 'Combined view of CPI inflation (World Bank) and monthly HICP (Eurostat).',
+      highestCpi: 'Highest CPI',
+      medianCpi: 'Median CPI',
+      mostStable: 'Most Stable',
+      inflationRanking: 'CPI Inflation Ranking',
+      hicpSnapshot: 'Eurostat HICP Snapshot',
+      countryInflation: 'Country-by-Country Inflation Detail',
+      worldBankIndicators: 'World Bank Indicators',
+      eurostatIndicators: 'Eurostat HICP (monthly %)',
+      latestHicp: 'Latest HICP change',
+      referenceMonth: 'Reference month',
+      metricsNote: 'Metrics are compiled from World Bank (annual) and Eurostat (monthly) datasets.',
+      dataSources: 'Data Sources',
+      reportInfo: 'Report Information',
+      lastRefreshed: 'Last Refreshed',
+      coverage: 'Coverage: GDP, GDP Growth, CPI Inflation, HICP Monthly Rate',
+      noData: 'No data available',
+      designRules: 'Apple HIG-aligned UI Design Rules',
+      tailwindNote: 'Mapped to Tailwind CSS tokens',
+      colorSystem: 'Color System',
+      colorIntent: 'Use subdued neutrals with a single accent to keep focus on data.',
+      colorTokens: 'Tailwind: bg-slate-50, bg-slate-900, bg-blue-600, text-slate-900, text-white.',
+      typography: 'Typography',
+      typographyIntent: 'Clear hierarchy with comfortable line height for long-form data.',
+      typographyTokens: 'Tailwind: text-4xl font-semibold tracking-tight, text-base leading-6, text-sm text-slate-600.',
+      spacing: 'Spacing',
+      spacingIntent: 'Generous padding and consistent gaps to support scanning.',
+      spacingTokens: 'Tailwind: p-6, p-8, gap-6, mt-16.',
+      radius: 'Border Radius',
+      radiusIntent: 'Soft rounding to mimic iOS card surfaces and improve approachability.',
+      radiusTokens: 'Tailwind: rounded-xl for cards, rounded-full for badges.',
+      shadow: 'Shadow',
+      shadowIntent: 'Subtle elevation cues without overwhelming data.',
+      shadowTokens: 'Tailwind: shadow-sm, shadow-lg shadow-blue-500/30 for active tabs.',
+      components: 'UI Components',
+      componentsIntent: 'Cards, tabs, and badges emphasize summary and details layers.',
+      componentsTokens: 'Tailwind: rounded-xl border border-slate-100, px-6 py-3, text-sm font-medium.',
+      accessibility: 'Accessibility',
+      accessibilityIntent: 'Maintain contrast, readable sizes, and clear focus states.',
+      accessibilityTokens: 'Tailwind: text-slate-900 on bg-slate-50, focus-visible:ring-2 ring-blue-500.',
+    }
+  } as const;
+
+  const t = labels[language];
 
   const countries: CountryConfig[] = [
     { name: 'Germany', wbCode: 'DE', eurostatCode: 'DE' },
@@ -326,7 +474,7 @@ const GlobalEconomyDashboard = () => {
           </div>
         )) : (
           <div className="text-center text-slate-500 py-4">
-            <p className={typography.caption}>No data available</p>
+            <p className={typography.caption}>{t.noData}</p>
           </div>
         )}
       </div>
@@ -351,7 +499,7 @@ const GlobalEconomyDashboard = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
-          <h4 className={`${typography.h4} text-slate-900 mb-3`}>World Bank Indicators</h4>
+          <h4 className={`${typography.h4} text-slate-900 mb-3`}>{t.worldBankIndicators}</h4>
           <div className="space-y-2">
             <p className={`${typography.body} text-slate-700`}>
               GDP (current US$): <span className="font-medium text-slate-900">{formatNumber(country.gdp.value, { notation: 'compact' })}</span>
@@ -365,13 +513,13 @@ const GlobalEconomyDashboard = () => {
           </div>
         </div>
         <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
-          <h4 className={`${typography.h4} text-slate-900 mb-3`}>Eurostat HICP (monthly %)</h4>
+          <h4 className={`${typography.h4} text-slate-900 mb-3`}>{t.eurostatIndicators}</h4>
           <div className="space-y-2">
             <p className={`${typography.body} text-slate-700`}>
-              Latest HICP change: <span className="font-medium text-slate-900">{formatNumber(country.eurostatInflation.value, { maximumFractionDigits: 1 })}%</span>
+              {t.latestHicp}: <span className="font-medium text-slate-900">{formatNumber(country.eurostatInflation.value, { maximumFractionDigits: 1 })}%</span>
             </p>
             <p className={`${typography.caption} text-slate-500`}>
-              Reference month: {country.eurostatInflation.date || 'N/A'}
+              {t.referenceMonth}: {country.eurostatInflation.date || 'N/A'}
             </p>
           </div>
         </div>
@@ -381,7 +529,7 @@ const GlobalEconomyDashboard = () => {
         <div className="flex items-center gap-2">
           <Info className="w-4 h-4 text-amber-600" />
           <span className={`${typography.caption} text-amber-800`}>
-            Metrics are compiled from World Bank (annual) and Eurostat (monthly) datasets.
+            {t.metricsNote}
           </span>
         </div>
       </div>
@@ -424,7 +572,7 @@ const GlobalEconomyDashboard = () => {
     if (isLoading) {
       return (
         <div className="text-center text-slate-500 py-8">
-          <p className={typography.body}>Loading country data...</p>
+          <p className={typography.body}>{t.loading}</p>
         </div>
       );
     }
@@ -434,7 +582,7 @@ const GlobalEconomyDashboard = () => {
         <div className={`${colors.danger[50]} border border-rose-200 ${borderRadius.md} ${spacing.md} text-rose-700`}>
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4" />
-            <p className={typography.body}>{errorMessage}</p>
+            <p className={typography.body}>{errorMessage || t.error}</p>
           </div>
         </div>
       );
@@ -445,28 +593,28 @@ const GlobalEconomyDashboard = () => {
         return (
           <div>
             <div className="mb-8">
-              <h2 className={`${typography.h1} text-slate-900 mb-2`}>Global Economic Pulse</h2>
+              <h2 className={`${typography.h1} text-slate-900 mb-2`}>{t.overviewTitle}</h2>
               <p className={`${typography.body} text-slate-600 mb-6`}>
-                A harmonized snapshot of GDP, growth, and inflation metrics across major EU economies.
+                {t.overviewDescription}
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <MetricCard
-                  title="Average GDP (current US$)"
+                  title={t.averageGdp}
                   value={summary ? formatNumber(summary.averageGdp, { notation: 'compact' }) : 'N/A'}
                   icon={<Globe2 className="w-5 h-5 text-blue-600" />}
                 />
                 <MetricCard
-                  title="Average GDP Growth"
+                  title={t.averageGrowth}
                   value={summary ? `${formatNumber(summary.averageGrowth, { maximumFractionDigits: 1 })}%` : 'N/A'}
-                  change="YoY"
+                  change={t.yoy}
                   trend="positive"
                   icon={<TrendingUp className="w-5 h-5 text-blue-600" />}
                 />
                 <MetricCard
-                  title="Average Inflation (CPI)"
+                  title={t.averageInflation}
                   value={summary ? `${formatNumber(summary.averageInflation, { maximumFractionDigits: 1 })}%` : 'N/A'}
-                  change={summary?.lastUpdated ? `Last update ${summary.lastUpdated}` : ''}
+                  change={summary?.lastUpdated ? `${t.lastUpdate} ${summary.lastUpdated}` : ''}
                   trend="neutral"
                   icon={<Percent className="w-5 h-5 text-blue-600" />}
                 />
@@ -474,12 +622,12 @@ const GlobalEconomyDashboard = () => {
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <RankingCard
-                  title="GDP Leaders"
+                  title={t.gdpLeaders}
                   items={rankingData.gdp.slice(0, 3)}
                   type="gdp"
                 />
                 <RankingCard
-                  title="Fastest Growth"
+                  title={t.fastestGrowth}
                   items={rankingData.growth.slice(0, 3)}
                   type="growth"
                 />
@@ -487,7 +635,7 @@ const GlobalEconomyDashboard = () => {
             </div>
 
             <div>
-              <h3 className={`${typography.h2} text-slate-900 mb-6`}>Country-by-Country Overview</h3>
+              <h3 className={`${typography.h2} text-slate-900 mb-6`}>{t.countryOverview}</h3>
               {countryMetrics.map((country, index) => (
                 <CountrySection key={index} country={country} />
               ))}
@@ -499,28 +647,28 @@ const GlobalEconomyDashboard = () => {
         return (
           <div>
             <div className="mb-8">
-              <h2 className={`${typography.h1} text-slate-900 mb-2`}>Growth & Output</h2>
+              <h2 className={`${typography.h1} text-slate-900 mb-2`}>{t.growthTitle}</h2>
               <p className={`${typography.body} text-slate-600 mb-6`}>
-                Annual GDP growth and current GDP size from the World Bank database.
+                {t.growthDescription}
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <MetricCard
-                  title="Top GDP"
+                  title={t.topGdp}
                   value={rankingData.gdp[0]?.value || 'N/A'}
                   change={rankingData.gdp[0]?.name || 'N/A'}
                   trend="positive"
                   icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
                 />
                 <MetricCard
-                  title="Best Growth"
+                  title={t.bestGrowth}
                   value={rankingData.growth[0]?.value || 'N/A'}
                   change={rankingData.growth[0]?.name || 'N/A'}
                   trend="positive"
                   icon={<TrendingUp className="w-5 h-5 text-blue-600" />}
                 />
                 <MetricCard
-                  title="Momentum Watch"
+                  title={t.momentum}
                   value={rankingData.growth[1]?.value || 'N/A'}
                   change={rankingData.growth[1]?.name || 'N/A'}
                   trend="neutral"
@@ -530,12 +678,12 @@ const GlobalEconomyDashboard = () => {
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <RankingCard
-                  title="GDP Ranking"
+                  title={t.gdpRanking}
                   items={rankingData.gdp}
                   type="gdp"
                 />
                 <RankingCard
-                  title="GDP Growth Ranking"
+                  title={t.growthRanking}
                   items={rankingData.growth}
                   type="growth"
                 />
@@ -543,7 +691,7 @@ const GlobalEconomyDashboard = () => {
             </div>
 
             <div>
-              <h3 className={`${typography.h2} text-slate-900 mb-6`}>Country-by-Country Growth Detail</h3>
+              <h3 className={`${typography.h2} text-slate-900 mb-6`}>{t.countryGrowth}</h3>
               {countryMetrics.map((country, index) => (
                 <CountrySection key={index} country={country} />
               ))}
@@ -555,28 +703,28 @@ const GlobalEconomyDashboard = () => {
         return (
           <div>
             <div className="mb-8">
-              <h2 className={`${typography.h1} text-slate-900 mb-2`}>Inflation & Price Stability</h2>
+              <h2 className={`${typography.h1} text-slate-900 mb-2`}>{t.inflationTitle}</h2>
               <p className={`${typography.body} text-slate-600 mb-6`}>
-                Combined view of CPI inflation (World Bank) and monthly HICP (Eurostat).
+                {t.inflationDescription}
               </p>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 <MetricCard
-                  title="Highest CPI"
+                  title={t.highestCpi}
                   value={rankingData.inflation[0]?.value || 'N/A'}
                   change={rankingData.inflation[0]?.name || 'N/A'}
                   trend="negative"
                   icon={<Percent className="w-5 h-5 text-blue-600" />}
                 />
                 <MetricCard
-                  title="Median CPI"
+                  title={t.medianCpi}
                   value={rankingData.inflation[2]?.value || 'N/A'}
                   change={rankingData.inflation[2]?.name || 'N/A'}
                   trend="neutral"
                   icon={<BarChart3 className="w-5 h-5 text-blue-600" />}
                 />
                 <MetricCard
-                  title="Most Stable"
+                  title={t.mostStable}
                   value={rankingData.inflation.at(-1)?.value || 'N/A'}
                   change={rankingData.inflation.at(-1)?.name || 'N/A'}
                   trend="positive"
@@ -586,12 +734,12 @@ const GlobalEconomyDashboard = () => {
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
                 <RankingCard
-                  title="CPI Inflation Ranking"
+                  title={t.inflationRanking}
                   items={rankingData.inflation}
                   type="inflation"
                 />
                 <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
-                  <h3 className={`${typography.h4} text-slate-900 mb-4`}>Eurostat HICP Snapshot</h3>
+                  <h3 className={`${typography.h4} text-slate-900 mb-4`}>{t.hicpSnapshot}</h3>
                   <div className="space-y-3">
                     {countryMetrics.map((country) => (
                       <div key={country.name} className="flex items-center justify-between">
@@ -607,7 +755,7 @@ const GlobalEconomyDashboard = () => {
             </div>
 
             <div>
-              <h3 className={`${typography.h2} text-slate-900 mb-6`}>Country-by-Country Inflation Detail</h3>
+              <h3 className={`${typography.h2} text-slate-900 mb-6`}>{t.countryInflation}</h3>
               {countryMetrics.map((country, index) => (
                 <CountrySection key={index} country={country} />
               ))}
@@ -627,14 +775,14 @@ const GlobalEconomyDashboard = () => {
         <div className="max-w-7xl mx-auto">
           <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div>
-              <h1 className={`${typography.display} mb-4`}>Economic Conditions Dashboard</h1>
+              <h1 className={`${typography.display} mb-4`}>{t.title}</h1>
               <p className={`${typography.body} opacity-90`}>
-                Live economic indicators sourced from World Bank Open Data and Eurostat.
+                {t.subtitle}
               </p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               <label htmlFor="year-select" className="text-sm font-medium text-white/80">
-                Data year
+                {t.dataYear}
               </label>
               <select
                 id="year-select"
@@ -652,6 +800,18 @@ const GlobalEconomyDashboard = () => {
                   <option value="">Loading...</option>
                 )}
               </select>
+              <label htmlFor="language-select" className="text-sm font-medium text-white/80">
+                {t.language}
+              </label>
+              <select
+                id="language-select"
+                value={language}
+                onChange={(event) => setLanguage(event.target.value as LanguageOption)}
+                className="rounded-lg bg-slate-800/70 border border-slate-600 text-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+              >
+                <option value="ja">日本語</option>
+                <option value="en">English</option>
+              </select>
             </div>
           </div>
         </div>
@@ -663,21 +823,21 @@ const GlobalEconomyDashboard = () => {
           <div className="flex gap-2 overflow-x-auto">
             <TabButton
               id="overview"
-              label="Overview"
+              label={t.overviewTab}
               icon={<Globe2 className="w-5 h-5" />}
               isActive={activeTab === 'overview'}
               onClick={setActiveTab}
             />
             <TabButton
               id="growth"
-              label="Growth & Output"
+              label={t.growthTab}
               icon={<TrendingUp className="w-5 h-5" />}
               isActive={activeTab === 'growth'}
               onClick={setActiveTab}
             />
             <TabButton
               id="inflation"
-              label="Inflation"
+              label={t.inflationTab}
               icon={<Percent className="w-5 h-5" />}
               isActive={activeTab === 'inflation'}
               onClick={setActiveTab}
@@ -692,71 +852,71 @@ const GlobalEconomyDashboard = () => {
 
         <section className="mt-16">
           <div className="flex items-center justify-between mb-6">
-            <h2 className={`${typography.h2} text-slate-900`}>Apple HIG-aligned UI Design Rules</h2>
-            <span className={`${typography.caption} text-slate-500`}>Mapped to Tailwind CSS tokens</span>
+            <h2 className={`${typography.h2} text-slate-900`}>{t.designRules}</h2>
+            <span className={`${typography.caption} text-slate-500`}>{t.tailwindNote}</span>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
-              <h3 className={`${typography.h4} text-slate-900 mb-3`}>Color System</h3>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.colorSystem}</h3>
               <p className={`${typography.body} text-slate-700 mb-2`}>
-                Intent: Use subdued neutrals with a single accent to keep focus on data.
+                {t.colorIntent}
               </p>
               <p className={`${typography.caption} text-slate-500`}>
-                Tailwind: bg-slate-50, bg-slate-900, bg-blue-600, text-slate-900, text-white.
+                {t.colorTokens}
               </p>
             </div>
             <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
-              <h3 className={`${typography.h4} text-slate-900 mb-3`}>Typography</h3>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.typography}</h3>
               <p className={`${typography.body} text-slate-700 mb-2`}>
-                Intent: Clear hierarchy with comfortable line height for long-form data.
+                {t.typographyIntent}
               </p>
               <p className={`${typography.caption} text-slate-500`}>
-                Tailwind: text-4xl font-semibold tracking-tight, text-base leading-6, text-sm text-slate-600.
+                {t.typographyTokens}
               </p>
             </div>
             <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
-              <h3 className={`${typography.h4} text-slate-900 mb-3`}>Spacing</h3>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.spacing}</h3>
               <p className={`${typography.body} text-slate-700 mb-2`}>
-                Intent: Generous padding and consistent gaps to support scanning.
+                {t.spacingIntent}
               </p>
               <p className={`${typography.caption} text-slate-500`}>
-                Tailwind: p-6, p-8, gap-6, mt-16.
+                {t.spacingTokens}
               </p>
             </div>
             <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
-              <h3 className={`${typography.h4} text-slate-900 mb-3`}>Border Radius</h3>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.radius}</h3>
               <p className={`${typography.body} text-slate-700 mb-2`}>
-                Intent: Soft rounding to mimic iOS card surfaces and improve approachability.
+                {t.radiusIntent}
               </p>
               <p className={`${typography.caption} text-slate-500`}>
-                Tailwind: rounded-xl for cards, rounded-full for badges.
+                {t.radiusTokens}
               </p>
             </div>
             <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
-              <h3 className={`${typography.h4} text-slate-900 mb-3`}>Shadow</h3>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.shadow}</h3>
               <p className={`${typography.body} text-slate-700 mb-2`}>
-                Intent: Subtle elevation cues without overwhelming data.
+                {t.shadowIntent}
               </p>
               <p className={`${typography.caption} text-slate-500`}>
-                Tailwind: shadow-sm, shadow-lg shadow-blue-500/30 for active tabs.
+                {t.shadowTokens}
               </p>
             </div>
             <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
-              <h3 className={`${typography.h4} text-slate-900 mb-3`}>UI Components</h3>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.components}</h3>
               <p className={`${typography.body} text-slate-700 mb-2`}>
-                Intent: Cards, tabs, and badges emphasize summary and details layers.
+                {t.componentsIntent}
               </p>
               <p className={`${typography.caption} text-slate-500`}>
-                Tailwind: rounded-xl border border-slate-100, px-6 py-3, text-sm font-medium.
+                {t.componentsTokens}
               </p>
             </div>
             <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
-              <h3 className={`${typography.h4} text-slate-900 mb-3`}>Accessibility</h3>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.accessibility}</h3>
               <p className={`${typography.body} text-slate-700 mb-2`}>
-                Intent: Maintain contrast, readable sizes, and clear focus states.
+                {t.accessibilityIntent}
               </p>
               <p className={`${typography.caption} text-slate-500`}>
-                Tailwind: text-slate-900 on bg-slate-50, focus-visible:ring-2 ring-blue-500.
+                {t.accessibilityTokens}
               </p>
             </div>
           </div>
@@ -768,19 +928,19 @@ const GlobalEconomyDashboard = () => {
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
-              <h3 className={`${typography.h4} text-slate-900 mb-4`}>Data Sources</h3>
+              <h3 className={`${typography.h4} text-slate-900 mb-4`}>{t.dataSources}</h3>
               <ul className={`${typography.caption} space-y-2`}>
                 <li>• World Bank Open Data API</li>
                 <li>• Eurostat Dissemination API</li>
               </ul>
             </div>
             <div>
-              <h3 className={`${typography.h4} text-slate-900 mb-4`}>Report Information</h3>
+              <h3 className={`${typography.h4} text-slate-900 mb-4`}>{t.reportInfo}</h3>
               <p className={`${typography.caption} mb-2`}>
-                Last Refreshed: {summary?.lastUpdated || 'N/A'}
+                {t.lastRefreshed}: {summary?.lastUpdated || 'N/A'}
               </p>
               <p className={`${typography.caption}`}>
-                Coverage: GDP, GDP Growth, CPI Inflation, HICP Monthly Rate
+                {t.coverage}
               </p>
             </div>
           </div>
