@@ -125,6 +125,29 @@ const GlobalEconomyDashboard = () => {
       lastRefreshed: '最終更新',
       coverage: '対象指標: GDP, GDP成長率, CPI, HICP(月次)',
       noData: 'データがありません',
+      designRules: 'Apple HIG準拠 UI デザインルール',
+      tailwindNote: 'Tailwind CSS トークン対応',
+      colorSystem: 'カラーシステム',
+      colorIntent: '落ち着いたニュートラルにアクセントを加え、データに集中しやすく。',
+      colorTokens: 'Tailwind: bg-slate-50, bg-slate-900, bg-blue-600, text-slate-900, text-white.',
+      typography: 'タイポグラフィ',
+      typographyIntent: '階層を明確にし、読みやすい行間を確保。',
+      typographyTokens: 'Tailwind: text-4xl font-semibold tracking-tight, text-base leading-6, text-sm text-slate-600.',
+      spacing: '余白・間隔',
+      spacingIntent: '十分なパディングと間隔で情報をスキャンしやすく。',
+      spacingTokens: 'Tailwind: p-6, p-8, gap-6, mt-16.',
+      radius: '角丸',
+      radiusIntent: 'iOSのカード表現に近い柔らかさで親しみやすく。',
+      radiusTokens: 'Tailwind: rounded-xl for cards, rounded-full for badges.',
+      shadow: '影の効果',
+      shadowIntent: '視認性を高める控えめな階層表現。',
+      shadowTokens: 'Tailwind: shadow-sm, shadow-lg shadow-blue-500/30 for active tabs.',
+      components: 'UIコンポーネント',
+      componentsIntent: 'カード・タブ・バッジで概要と詳細の階層を明確化。',
+      componentsTokens: 'Tailwind: rounded-xl border border-slate-100, px-6 py-3, text-sm font-medium.',
+      accessibility: 'アクセシビリティ',
+      accessibilityIntent: 'コントラストと可読性、フォーカス視認性を確保。',
+      accessibilityTokens: 'Tailwind: text-slate-900 on bg-slate-50, focus-visible:ring-2 ring-blue-500.',
     },
     en: {
       title: 'Economic Conditions Dashboard',
@@ -172,6 +195,29 @@ const GlobalEconomyDashboard = () => {
       lastRefreshed: 'Last Refreshed',
       coverage: 'Coverage: GDP, GDP Growth, CPI Inflation, HICP Monthly Rate',
       noData: 'No data available',
+      designRules: 'Apple HIG-aligned UI Design Rules',
+      tailwindNote: 'Mapped to Tailwind CSS tokens',
+      colorSystem: 'Color System',
+      colorIntent: 'Use subdued neutrals with a single accent to keep focus on data.',
+      colorTokens: 'Tailwind: bg-slate-50, bg-slate-900, bg-blue-600, text-slate-900, text-white.',
+      typography: 'Typography',
+      typographyIntent: 'Clear hierarchy with comfortable line height for long-form data.',
+      typographyTokens: 'Tailwind: text-4xl font-semibold tracking-tight, text-base leading-6, text-sm text-slate-600.',
+      spacing: 'Spacing',
+      spacingIntent: 'Generous padding and consistent gaps to support scanning.',
+      spacingTokens: 'Tailwind: p-6, p-8, gap-6, mt-16.',
+      radius: 'Border Radius',
+      radiusIntent: 'Soft rounding to mimic iOS card surfaces and improve approachability.',
+      radiusTokens: 'Tailwind: rounded-xl for cards, rounded-full for badges.',
+      shadow: 'Shadow',
+      shadowIntent: 'Subtle elevation cues without overwhelming data.',
+      shadowTokens: 'Tailwind: shadow-sm, shadow-lg shadow-blue-500/30 for active tabs.',
+      components: 'UI Components',
+      componentsIntent: 'Cards, tabs, and badges emphasize summary and details layers.',
+      componentsTokens: 'Tailwind: rounded-xl border border-slate-100, px-6 py-3, text-sm font-medium.',
+      accessibility: 'Accessibility',
+      accessibilityIntent: 'Maintain contrast, readable sizes, and clear focus states.',
+      accessibilityTokens: 'Tailwind: text-slate-900 on bg-slate-50, focus-visible:ring-2 ring-blue-500.',
     }
   } as const;
 
@@ -219,14 +265,14 @@ const GlobalEconomyDashboard = () => {
   };
 
   const typography = {
-    display: 'text-3xl md:text-4xl font-semibold tracking-tight',
-    h1: 'text-2xl md:text-3xl font-semibold tracking-tight',
-    h2: 'text-xl md:text-2xl font-semibold tracking-tight',
-    h3: 'text-lg md:text-xl font-semibold',
-    h4: 'text-base md:text-lg font-medium',
-    body: 'text-sm md:text-base leading-6',
-    caption: 'text-xs md:text-sm text-slate-600',
-    small: 'text-[11px] md:text-xs text-slate-500',
+    display: 'text-4xl font-semibold tracking-tight',
+    h1: 'text-3xl font-semibold tracking-tight',
+    h2: 'text-2xl font-semibold tracking-tight',
+    h3: 'text-xl font-semibold',
+    h4: 'text-lg font-medium',
+    body: 'text-base leading-6',
+    caption: 'text-sm text-slate-600',
+    small: 'text-xs text-slate-500',
   };
 
   const spacing = {
@@ -363,7 +409,7 @@ const GlobalEconomyDashboard = () => {
     <button
       onClick={() => onClick(id)}
       className={`
-        flex items-center gap-2 px-3 py-2 rounded-xl font-medium text-xs md:text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2
+        flex items-center gap-3 px-6 py-3 rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2
         ${isActive 
           ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' 
           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -727,14 +773,14 @@ const GlobalEconomyDashboard = () => {
       {/* Header */}
       <header className={`${colors.secondary[900]} text-white ${spacing.lg}`}>
         <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className={`${typography.display} mb-4`}>{t.title}</h1>
               <p className={`${typography.body} opacity-90`}>
                 {t.subtitle}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               <label htmlFor="year-select" className="text-sm font-medium text-white/80">
                 {t.dataYear}
               </label>
@@ -742,7 +788,7 @@ const GlobalEconomyDashboard = () => {
                 id="year-select"
                 value={selectedYear}
                 onChange={(event) => setSelectedYear(event.target.value)}
-                className="rounded-lg bg-slate-800/70 border border-slate-600 text-white px-3 py-2 text-xs md:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                className="rounded-lg bg-slate-800/70 border border-slate-600 text-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 {yearOptions.length ? (
                   yearOptions.map((year) => (
@@ -761,7 +807,7 @@ const GlobalEconomyDashboard = () => {
                 id="language-select"
                 value={language}
                 onChange={(event) => setLanguage(event.target.value as LanguageOption)}
-                className="rounded-lg bg-slate-800/70 border border-slate-600 text-white px-3 py-2 text-xs md:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                className="rounded-lg bg-slate-800/70 border border-slate-600 text-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 <option value="ja">日本語</option>
                 <option value="en">English</option>
@@ -774,7 +820,7 @@ const GlobalEconomyDashboard = () => {
       {/* Navigation Tabs */}
       <nav className={`${colors.secondary[50]} border-b border-slate-200 ${spacing.md}`} role="tablist">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 overflow-x-auto">
             <TabButton
               id="overview"
               label={t.overviewTab}
@@ -804,6 +850,77 @@ const GlobalEconomyDashboard = () => {
       <main className={`max-w-7xl mx-auto ${spacing.lg}`} role="tabpanel">
         {renderTabContent()}
 
+        <section className="mt-16">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className={`${typography.h2} text-slate-900`}>{t.designRules}</h2>
+            <span className={`${typography.caption} text-slate-500`}>{t.tailwindNote}</span>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.colorSystem}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.colorIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.colorTokens}
+              </p>
+            </div>
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.typography}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.typographyIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.typographyTokens}
+              </p>
+            </div>
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.spacing}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.spacingIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.spacingTokens}
+              </p>
+            </div>
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.radius}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.radiusIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.radiusTokens}
+              </p>
+            </div>
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.shadow}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.shadowIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.shadowTokens}
+              </p>
+            </div>
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.components}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.componentsIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.componentsTokens}
+              </p>
+            </div>
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.accessibility}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.accessibilityIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.accessibilityTokens}
+              </p>
+            </div>
+          </div>
+        </section>
       </main>
 
       {/* Footer */}
