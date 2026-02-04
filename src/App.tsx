@@ -265,14 +265,14 @@ const GlobalEconomyDashboard = () => {
   };
 
   const typography = {
-    display: 'text-3xl md:text-4xl font-semibold tracking-tight',
-    h1: 'text-2xl md:text-3xl font-semibold tracking-tight',
-    h2: 'text-xl md:text-2xl font-semibold tracking-tight',
-    h3: 'text-lg md:text-xl font-semibold',
-    h4: 'text-base md:text-lg font-medium',
-    body: 'text-sm md:text-base leading-6',
-    caption: 'text-xs md:text-sm text-slate-600',
-    small: 'text-[11px] md:text-xs text-slate-500',
+    display: 'text-4xl font-semibold tracking-tight',
+    h1: 'text-3xl font-semibold tracking-tight',
+    h2: 'text-2xl font-semibold tracking-tight',
+    h3: 'text-xl font-semibold',
+    h4: 'text-lg font-medium',
+    body: 'text-base leading-6',
+    caption: 'text-sm text-slate-600',
+    small: 'text-xs text-slate-500',
   };
 
   const spacing = {
@@ -409,7 +409,7 @@ const GlobalEconomyDashboard = () => {
     <button
       onClick={() => onClick(id)}
       className={`
-        flex items-center gap-2 px-3 py-2 rounded-xl font-medium text-xs md:text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2
+        flex items-center gap-3 px-6 py-3 rounded-xl font-medium transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2
         ${isActive 
           ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' 
           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
@@ -773,14 +773,14 @@ const GlobalEconomyDashboard = () => {
       {/* Header */}
       <header className={`${colors.secondary[900]} text-white ${spacing.lg}`}>
         <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
             <div>
               <h1 className={`${typography.display} mb-4`}>{t.title}</h1>
               <p className={`${typography.body} opacity-90`}>
                 {t.subtitle}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center gap-3">
               <label htmlFor="year-select" className="text-sm font-medium text-white/80">
                 {t.dataYear}
               </label>
@@ -788,7 +788,7 @@ const GlobalEconomyDashboard = () => {
                 id="year-select"
                 value={selectedYear}
                 onChange={(event) => setSelectedYear(event.target.value)}
-                className="rounded-lg bg-slate-800/70 border border-slate-600 text-white px-3 py-2 text-xs md:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                className="rounded-lg bg-slate-800/70 border border-slate-600 text-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 {yearOptions.length ? (
                   yearOptions.map((year) => (
@@ -807,7 +807,7 @@ const GlobalEconomyDashboard = () => {
                 id="language-select"
                 value={language}
                 onChange={(event) => setLanguage(event.target.value as LanguageOption)}
-                className="rounded-lg bg-slate-800/70 border border-slate-600 text-white px-3 py-2 text-xs md:text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                className="rounded-lg bg-slate-800/70 border border-slate-600 text-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
               >
                 <option value="ja">日本語</option>
                 <option value="en">English</option>
@@ -820,7 +820,7 @@ const GlobalEconomyDashboard = () => {
       {/* Navigation Tabs */}
       <nav className={`${colors.secondary[50]} border-b border-slate-200 ${spacing.md}`} role="tablist">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-wrap gap-2">
+          <div className="flex gap-2 overflow-x-auto">
             <TabButton
               id="overview"
               label={t.overviewTab}
@@ -850,6 +850,77 @@ const GlobalEconomyDashboard = () => {
       <main className={`max-w-7xl mx-auto ${spacing.lg}`} role="tabpanel">
         {renderTabContent()}
 
+        <section className="mt-16">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className={`${typography.h2} text-slate-900`}>{t.designRules}</h2>
+            <span className={`${typography.caption} text-slate-500`}>{t.tailwindNote}</span>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.colorSystem}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.colorIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.colorTokens}
+              </p>
+            </div>
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.typography}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.typographyIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.typographyTokens}
+              </p>
+            </div>
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.spacing}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.spacingIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.spacingTokens}
+              </p>
+            </div>
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.radius}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.radiusIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.radiusTokens}
+              </p>
+            </div>
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.shadow}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.shadowIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.shadowTokens}
+              </p>
+            </div>
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.components}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.componentsIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.componentsTokens}
+              </p>
+            </div>
+            <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+              <h3 className={`${typography.h4} text-slate-900 mb-3`}>{t.accessibility}</h3>
+              <p className={`${typography.body} text-slate-700 mb-2`}>
+                {t.accessibilityIntent}
+              </p>
+              <p className={`${typography.caption} text-slate-500`}>
+                {t.accessibilityTokens}
+              </p>
+            </div>
+          </div>
+        </section>
       </main>
 
       {/* Footer */}
