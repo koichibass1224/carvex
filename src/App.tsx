@@ -409,7 +409,7 @@ const GlobalEconomyDashboard = () => {
     <button
       onClick={() => onClick(id)}
       className={`
-        flex items-center gap-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2
+        flex items-center gap-2 px-3 py-2 rounded-xl font-medium text-xs md:text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2
         ${isActive 
           ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30' 
           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
