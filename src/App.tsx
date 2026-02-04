@@ -113,6 +113,8 @@ const GlobalEconomyDashboard = () => {
     'unemployment',
     'population',
   ]);
+  const [trendStartYear, setTrendStartYear] = useState<string>('2000');
+  const [trendEndYear, setTrendEndYear] = useState<string>('');
   const [trendIndicators, setTrendIndicators] = useState<string[]>([
     'gdp',
     'inflation',
@@ -159,7 +161,6 @@ const GlobalEconomyDashboard = () => {
       medianCpi: 'CPI中央値',
       mostStable: '最も安定',
       inflationRanking: 'CPIインフレランキング',
-      hicpSnapshot: 'Eurostat HICP スナップショット',
       countryInflation: '国別のインフレ詳細',
       worldBankIndicators: 'World Bank 指標',
       eurostatIndicators: 'Eurostat HICP（月次）',
@@ -179,6 +180,8 @@ const GlobalEconomyDashboard = () => {
       trendsTitle: '年別推移',
       trendsDescription: '選択した国の指標を年別の折れ線グラフで確認できます。',
       selectCountry: '国を選択',
+      rangeStart: '開始年',
+      rangeEnd: '終了年',
       indicatorGdp: 'GDP（現行US$）',
       indicatorGrowth: 'GDP成長率',
       indicatorInflation: 'CPIインフレ率',
@@ -222,7 +225,6 @@ const GlobalEconomyDashboard = () => {
       medianCpi: 'Median CPI',
       mostStable: 'Most Stable',
       inflationRanking: 'CPI Inflation Ranking',
-      hicpSnapshot: 'Eurostat HICP Snapshot',
       countryInflation: 'Country-by-Country Inflation Detail',
       worldBankIndicators: 'World Bank Indicators',
       eurostatIndicators: 'Eurostat HICP (monthly %)',
@@ -242,6 +244,8 @@ const GlobalEconomyDashboard = () => {
       trendsTitle: 'Time Series Trends',
       trendsDescription: 'View selected indicators by year for a single country.',
       selectCountry: 'Select country',
+      rangeStart: 'Start year',
+      rangeEnd: 'End year',
       indicatorGdp: 'GDP (current US$)',
       indicatorGrowth: 'GDP growth rate',
       indicatorInflation: 'CPI inflation',
@@ -826,13 +830,16 @@ const GlobalEconomyDashboard = () => {
 
   const trendChartData = useMemo(() => {
     if (!trendIndicators.length || !Object.keys(trendSeries).length) {
-      return null;
+      return { labels: [], datasets: [], years: [] };
     }
     const yearSet = new Set<string>();
     trendIndicators.forEach((key) => {
       (trendSeries[key] || []).forEach((entry) => yearSet.add(entry.date));
     });
-    const labels = Array.from(yearSet).sort();
+    const years = Array.from(yearSet).sort();
+    const endYear = trendEndYear || years.at(-1) || '';
+    const startYear = trendStartYear || years[0] || '';
+    const labels = years.filter((year) => year >= startYear && year <= endYear);
 
     const axisMap: Record<string, string> = {
       gdp: 'value',
@@ -868,8 +875,8 @@ const GlobalEconomyDashboard = () => {
       spanGaps: true,
     }));
 
-    return { labels, datasets };
-  }, [trendIndicators, trendSeries, indicatorLabelMap]);
+    return { labels, datasets, years };
+  }, [trendIndicators, trendSeries, indicatorLabelMap, trendStartYear, trendEndYear]);
 
   const renderTabContent = () => {
     if (isLoading) {
@@ -893,7 +900,11 @@ const GlobalEconomyDashboard = () => {
 
     switch (activeTab) {
       case 'eurostat': {
-        const limit = showAllRankings ? rankingData.gdp.length : 5;
+        const eurostatRankings = [
+          { key: 'gdp', title: t.gdpLeaders, items: rankingData.gdp },
+          { key: 'growth', title: t.fastestGrowth, items: rankingData.growth },
+          { key: 'inflation', title: t.inflationRanking, items: rankingData.inflation },
+        ];
         return (
           <div>
             <div className="mb-8">
@@ -924,47 +935,31 @@ const GlobalEconomyDashboard = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-4">
-                <RankingCard
-                  title={t.gdpLeaders}
-                  items={rankingData.gdp.slice(0, limit)}
-                  type="gdp"
-                />
-                <RankingCard
-                  title={t.fastestGrowth}
-                  items={rankingData.growth.slice(0, limit)}
-                  type="growth"
-                />
+              <div className="space-y-4 mb-8">
+                {eurostatRankings.map((ranking) => (
+                  <details key={ranking.key} className="rounded-xl border border-slate-200 bg-white/80 px-4 py-3">
+                    <summary className="cursor-pointer text-sm font-semibold text-slate-800">
+                      {ranking.title}
+                    </summary>
+                    <div className="mt-3">
+                      <RankingCard
+                        title={ranking.title}
+                        items={showAllRankings ? ranking.items : ranking.items.slice(0, 5)}
+                        type={ranking.key as RankingCardProps['type']}
+                      />
+                      {ranking.items.length > 5 && (
+                        <button
+                          type="button"
+                          onClick={() => setShowAllRankings((prev) => !prev)}
+                          className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700"
+                        >
+                          {showAllRankings ? t.viewLess : t.viewMore}
+                        </button>
+                      )}
+                    </div>
+                  </details>
+                ))}
               </div>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-                <RankingCard
-                  title={t.inflationRanking}
-                  items={rankingData.inflation.slice(0, limit)}
-                  type="inflation"
-                />
-                <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
-                  <h3 className={`${typography.h4} text-slate-900 mb-4`}>{t.hicpSnapshot}</h3>
-                  <div className="space-y-3">
-                    {eurostatMetrics.map((country) => (
-                      <div key={country.name} className="flex items-center justify-between">
-                        <span className={`${typography.body} text-slate-900`}>{country.name}</span>
-                        <span className={`${typography.body} font-medium text-amber-600`}>
-                          {formatNumber(country.eurostatInflation.value, { maximumFractionDigits: 1 })}%
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              {rankingData.gdp.length > 5 && (
-                <button
-                  type="button"
-                  onClick={() => setShowAllRankings((prev) => !prev)}
-                  className="text-sm font-medium text-blue-600 hover:text-blue-700"
-                >
-                  {showAllRankings ? t.viewLess : t.viewMore}
-                </button>
-              )}
             </div>
 
             <div>
@@ -1151,9 +1146,45 @@ const GlobalEconomyDashboard = () => {
                       ))}
                     </div>
                   </div>
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <div>
+                      <label htmlFor="trend-start" className={`${typography.caption} block mb-1 text-slate-600`}>
+                        {t.rangeStart}
+                      </label>
+                      <select
+                        id="trend-start"
+                        value={trendStartYear}
+                        onChange={(event) => setTrendStartYear(event.target.value)}
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                      >
+                        {(trendChartData?.years || []).map((year) => (
+                          <option key={`start-${year}`} value={year}>
+                            {year}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label htmlFor="trend-end" className={`${typography.caption} block mb-1 text-slate-600`}>
+                        {t.rangeEnd}
+                      </label>
+                      <select
+                        id="trend-end"
+                        value={trendEndYear || trendChartData?.years?.at(-1) || ''}
+                        onChange={(event) => setTrendEndYear(event.target.value)}
+                        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                      >
+                        {(trendChartData?.years || []).map((year) => (
+                          <option key={`end-${year}`} value={year}>
+                            {year}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
                 </div>
                 <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100 lg:col-span-2`}>
-                  {trendChartData ? (
+                  {trendChartData?.labels?.length ? (
                     <Line
                       data={trendChartData}
                       options={{
