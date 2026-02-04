@@ -38,6 +38,7 @@ type CountryMetrics = {
   gdp: IndicatorData;
   growth: IndicatorData;
   inflation: IndicatorData;
+  population?: IndicatorData;
   eurostatInflation: IndicatorData;
 };
 
@@ -103,9 +104,9 @@ const GlobalEconomyDashboard = () => {
   const [yearOptions, setYearOptions] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>('');
   const [language, setLanguage] = useState<LanguageOption>('ja');
-  const [showAllRankings, setShowAllRankings] = useState(false);
+  const [expandedRankings, setExpandedRankings] = useState<Record<string, boolean>>({});
   const [selectedWorldBankCodes, setSelectedWorldBankCodes] = useState<string[]>(['DE', 'FR', 'IT']);
-  const [trendCountryCode, setTrendCountryCode] = useState<string>('DE');
+  const [trendCountryCodes, setTrendCountryCodes] = useState<string[]>(['DE', 'FR']);
   const [radarIndicators, setRadarIndicators] = useState<string[]>([
     'gdp',
     'growth',
@@ -122,7 +123,9 @@ const GlobalEconomyDashboard = () => {
     'unemployment',
     'exchange',
   ]);
-  const [trendSeries, setTrendSeries] = useState<Record<string, IndicatorSeries[]>>({});
+  const [trendSeries, setTrendSeries] = useState<Record<string, Record<string, IndicatorSeries[]>>>({});
+  const [eurostatSearch, setEurostatSearch] = useState<string>('');
+  const [selectedEurostatCountries, setSelectedEurostatCountries] = useState<string[]>(['DE', 'FR', 'IT', 'ES']);
 
   const labels = {
     ja: {
@@ -180,9 +183,12 @@ const GlobalEconomyDashboard = () => {
       trendsTitle: '年別推移',
       trendsDescription: '選択した国の指標を年別の折れ線グラフで確認できます。',
       selectCountry: '国を選択',
+      selectCountriesMulti: '表示する国',
+      searchCountry: '国名で検索',
       rangeStart: '開始年',
       rangeEnd: '終了年',
       indicatorGdp: 'GDP（現行US$）',
+      indicatorGdpPerCapita: 'GDP（一人当たり）',
       indicatorGrowth: 'GDP成長率',
       indicatorInflation: 'CPIインフレ率',
       indicatorUnemployment: '失業率',
@@ -244,9 +250,12 @@ const GlobalEconomyDashboard = () => {
       trendsTitle: 'Time Series Trends',
       trendsDescription: 'View selected indicators by year for a single country.',
       selectCountry: 'Select country',
+      selectCountriesMulti: 'Countries to show',
+      searchCountry: 'Search countries',
       rangeStart: 'Start year',
       rangeEnd: 'End year',
       indicatorGdp: 'GDP (current US$)',
+      indicatorGdpPerCapita: 'GDP per capita',
       indicatorGrowth: 'GDP growth rate',
       indicatorInflation: 'CPI inflation',
       indicatorUnemployment: 'Unemployment rate',
@@ -459,15 +468,17 @@ const GlobalEconomyDashboard = () => {
         setErrorMessage('');
         const results = await Promise.all(
           eurostatCountries.map(async (country) => {
-            const [gdpSeries, growthSeries, inflationSeries] = await Promise.all([
+            const [gdpSeries, growthSeries, inflationSeries, populationSeries] = await Promise.all([
               fetchWorldBankSeries(country.wbCode, worldBankIndicators.gdp),
               fetchWorldBankSeries(country.wbCode, worldBankIndicators.growth),
               fetchWorldBankSeries(country.wbCode, worldBankIndicators.inflation),
+              fetchWorldBankSeries(country.wbCode, worldBankIndicators.population),
             ]);
             const year = selectedYear || undefined;
             const gdp = pickIndicatorForYear(gdpSeries, year);
             const growth = pickIndicatorForYear(growthSeries, year);
             const inflation = pickIndicatorForYear(inflationSeries, year);
+            const population = pickIndicatorForYear(populationSeries, year);
             const eurostatInflation = await fetchEurostatInflation(country.eurostatCode, year);
 
             return {
@@ -475,6 +486,7 @@ const GlobalEconomyDashboard = () => {
               gdp,
               growth,
               inflation,
+              population,
               eurostatInflation,
             };
           })
@@ -545,15 +557,24 @@ const GlobalEconomyDashboard = () => {
   useEffect(() => {
     const loadTrendSeries = async () => {
       try {
-        const seriesEntries = await Promise.all(
-          trendIndicators.map(async (key) => {
-            const indicator = worldBankIndicators[key as keyof typeof worldBankIndicators];
-            const data = await fetchWorldBankSeries(trendCountryCode, indicator);
-            return [key, data] as const;
+        const countryEntries = await Promise.all(
+          trendCountryCodes.map(async (code) => {
+            const seriesEntries = await Promise.all(
+              trendIndicators.map(async (key) => {
+                const indicator = worldBankIndicators[key as keyof typeof worldBankIndicators];
+                const data = await fetchWorldBankSeries(code, indicator);
+                return [key, data] as const;
+              })
+            );
+            const indicatorMap = seriesEntries.reduce<Record<string, IndicatorSeries[]>>((acc, [key, data]) => {
+              acc[key] = data;
+              return acc;
+            }, {});
+            return [code, indicatorMap] as const;
           })
         );
-        const mapped = seriesEntries.reduce<Record<string, IndicatorSeries[]>>((acc, [key, data]) => {
-          acc[key] = data;
+        const mapped = countryEntries.reduce<Record<string, Record<string, IndicatorSeries[]>>>((acc, [code, map]) => {
+          acc[code] = map;
           return acc;
         }, {});
         setTrendSeries(mapped);
@@ -562,10 +583,12 @@ const GlobalEconomyDashboard = () => {
       }
     };
 
-    if (trendCountryCode && trendIndicators.length) {
+    if (trendCountryCodes.length && trendIndicators.length) {
       loadTrendSeries();
+    } else {
+      setTrendSeries({});
     }
-  }, [trendCountryCode, trendIndicators, language]);
+  }, [trendCountryCodes, trendIndicators, language]);
 
   const summary = useMemo<SummaryMetrics | null>(() => {
     if (!eurostatMetrics.length) {
@@ -685,6 +708,13 @@ const GlobalEconomyDashboard = () => {
               GDP (current US$): <span className="font-medium text-slate-900">{formatNumber(country.gdp.value, { notation: 'compact' })}</span>
             </p>
             <p className={`${typography.body} text-slate-700`}>
+              {t.indicatorGdpPerCapita}: <span className="font-medium text-slate-900">
+                {country.gdp.value && country.population?.value
+                  ? formatNumber(country.gdp.value / country.population.value, { notation: 'compact' })
+                  : 'N/A'}
+              </span>
+            </p>
+            <p className={`${typography.body} text-slate-700`}>
               GDP Growth (annual %): <span className="font-medium text-slate-900">{formatNumber(country.growth.value, { maximumFractionDigits: 1 })}%</span>
             </p>
             <p className={`${typography.body} text-slate-700`}>
@@ -696,7 +726,11 @@ const GlobalEconomyDashboard = () => {
           <h4 className={`${typography.h4} text-slate-900 mb-3`}>{t.eurostatIndicators}</h4>
           <div className="space-y-2">
             <p className={`${typography.body} text-slate-700`}>
-              {t.latestHicp}: <span className="font-medium text-slate-900">{formatNumber(country.eurostatInflation.value, { maximumFractionDigits: 1 })}%</span>
+              {t.latestHicp}: <span className="font-medium text-slate-900">
+                {country.eurostatInflation.value === null
+                  ? 'N/A'
+                  : `${formatNumber(country.eurostatInflation.value, { maximumFractionDigits: 1 })}%`}
+              </span>
             </p>
             <p className={`${typography.caption} text-slate-500`}>
               {t.referenceMonth}: {country.eurostatInflation.date || 'N/A'}
@@ -759,6 +793,12 @@ const GlobalEconomyDashboard = () => {
 
   const toggleWorldBankCountry = (code: string) => {
     setSelectedWorldBankCodes((prev) =>
+      prev.includes(code) ? prev.filter((item) => item !== code) : [...prev, code]
+    );
+  };
+
+  const toggleEurostatCountry = (code: string) => {
+    setSelectedEurostatCountries((prev) =>
       prev.includes(code) ? prev.filter((item) => item !== code) : [...prev, code]
     );
   };
@@ -833,8 +873,10 @@ const GlobalEconomyDashboard = () => {
       return { labels: [], datasets: [], years: [] };
     }
     const yearSet = new Set<string>();
-    trendIndicators.forEach((key) => {
-      (trendSeries[key] || []).forEach((entry) => yearSet.add(entry.date));
+    Object.values(trendSeries).forEach((indicatorMap) => {
+      trendIndicators.forEach((key) => {
+        (indicatorMap[key] || []).forEach((entry) => yearSet.add(entry.date));
+      });
     });
     const years = Array.from(yearSet).sort();
     const endYear = trendEndYear || years.at(-1) || '';
@@ -859,24 +901,29 @@ const GlobalEconomyDashboard = () => {
       unemployment: '#0EA5E9',
     };
 
-    const datasets = trendIndicators.map((key) => ({
-      label: indicatorLabelMap[key] || key,
-      data: labels.map((year) => {
-        const match = (trendSeries[key] || []).find((entry) => entry.date === year);
-        return match?.value ?? null;
-      }),
-      borderColor: colorMap[key] || '#64748B',
-      backgroundColor: `${colorMap[key] || '#64748B'}33`,
-      yAxisID: axisMap[key],
-      tension: 0.35,
-      borderWidth: 2,
-      pointRadius: 2,
-      pointHoverRadius: 4,
-      spanGaps: true,
-    }));
+    const datasets = trendCountryCodes.flatMap((code, countryIndex) => {
+      const countryName = worldBankCountries.find((country) => country.wbCode === code)?.name || code;
+      const indicatorMap = trendSeries[code] || {};
+      return trendIndicators.map((key) => ({
+        label: `${countryName} · ${indicatorLabelMap[key] || key}`,
+        data: labels.map((year) => {
+          const match = (indicatorMap[key] || []).find((entry) => entry.date === year);
+          return match?.value ?? null;
+        }),
+        borderColor: colorMap[key] || '#64748B',
+        backgroundColor: `${colorMap[key] || '#64748B'}33`,
+        yAxisID: axisMap[key],
+        tension: 0.35,
+        borderWidth: 2,
+        pointRadius: 2,
+        pointHoverRadius: 4,
+        spanGaps: true,
+        borderDash: countryIndex % 2 ? [6, 4] : [],
+      }));
+    });
 
     return { labels, datasets, years };
-  }, [trendIndicators, trendSeries, indicatorLabelMap, trendStartYear, trendEndYear]);
+  }, [trendIndicators, trendSeries, indicatorLabelMap, trendStartYear, trendEndYear, trendCountryCodes, worldBankCountries]);
 
   const renderTabContent = () => {
     if (isLoading) {
@@ -905,6 +952,14 @@ const GlobalEconomyDashboard = () => {
           { key: 'growth', title: t.fastestGrowth, items: rankingData.growth },
           { key: 'inflation', title: t.inflationRanking, items: rankingData.inflation },
         ];
+        const filteredEurostatCountries = eurostatCountries.filter((country) =>
+          country.name.toLowerCase().includes(eurostatSearch.toLowerCase())
+        );
+        const selectedNames = new Set(
+          eurostatCountries
+            .filter((country) => selectedEurostatCountries.includes(country.wbCode))
+            .map((country) => country.name)
+        );
         return (
           <div>
             <div className="mb-8">
@@ -944,16 +999,21 @@ const GlobalEconomyDashboard = () => {
                     <div className="mt-3">
                       <RankingCard
                         title={ranking.title}
-                        items={showAllRankings ? ranking.items : ranking.items.slice(0, 5)}
+                        items={expandedRankings[ranking.key] ? ranking.items : ranking.items.slice(0, 5)}
                         type={ranking.key as RankingCardProps['type']}
                       />
                       {ranking.items.length > 5 && (
                         <button
                           type="button"
-                          onClick={() => setShowAllRankings((prev) => !prev)}
+                          onClick={() =>
+                            setExpandedRankings((prev) => ({
+                              ...prev,
+                              [ranking.key]: !prev[ranking.key],
+                            }))
+                          }
                           className="mt-3 text-sm font-medium text-blue-600 hover:text-blue-700"
                         >
-                          {showAllRankings ? t.viewLess : t.viewMore}
+                          {expandedRankings[ranking.key] ? t.viewLess : t.viewMore}
                         </button>
                       )}
                     </div>
@@ -964,9 +1024,40 @@ const GlobalEconomyDashboard = () => {
 
             <div>
               <h3 className={`${typography.h2} text-slate-900 mb-6`}>{t.countryOverview}</h3>
-              {eurostatMetrics.map((country, index) => (
-                <CountrySection key={index} country={country} />
-              ))}
+              <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100 mb-6`}>
+                <label htmlFor="eurostat-search" className={`${typography.caption} block mb-2 text-slate-600`}>
+                  {t.searchCountry}
+                </label>
+                <input
+                  id="eurostat-search"
+                  type="search"
+                  value={eurostatSearch}
+                  onChange={(event) => setEurostatSearch(event.target.value)}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                  placeholder={t.searchCountry}
+                />
+                <div className="mt-4">
+                  <h4 className={`${typography.h4} text-slate-900 mb-2`}>{t.selectCountriesMulti}</h4>
+                  <div className="max-h-56 overflow-y-auto space-y-2 pr-2">
+                    {filteredEurostatCountries.map((country) => (
+                      <label key={country.wbCode} className="flex items-center gap-2 text-sm text-slate-700">
+                        <input
+                          type="checkbox"
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          checked={selectedEurostatCountries.includes(country.wbCode)}
+                          onChange={() => toggleEurostatCountry(country.wbCode)}
+                        />
+                        {country.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {eurostatMetrics
+                .filter((country) => selectedNames.has(country.name))
+                .map((country, index) => (
+                  <CountrySection key={`${country.name}-${index}`} country={country} />
+                ))}
             </div>
           </div>
         );
@@ -1115,21 +1206,26 @@ const GlobalEconomyDashboard = () => {
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
-                  <label htmlFor="trend-country" className={`${typography.caption} block mb-2 text-slate-600`}>
-                    {t.selectCountry}
-                  </label>
-                  <select
-                    id="trend-country"
-                    value={trendCountryCode}
-                    onChange={(event) => setTrendCountryCode(event.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                  >
+                  <h4 className={`${typography.h4} text-slate-900 mb-2`}>{t.selectCountriesMulti}</h4>
+                  <div className="max-h-56 overflow-y-auto space-y-2 pr-2">
                     {worldBankCountries.map((country) => (
-                      <option key={country.wbCode} value={country.wbCode}>
+                      <label key={country.wbCode} className="flex items-center gap-2 text-sm text-slate-700">
+                        <input
+                          type="checkbox"
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          checked={trendCountryCodes.includes(country.wbCode)}
+                          onChange={() =>
+                            setTrendCountryCodes((prev) =>
+                              prev.includes(country.wbCode)
+                                ? prev.filter((item) => item !== country.wbCode)
+                                : [...prev, country.wbCode]
+                            )
+                          }
+                        />
                         {country.name}
-                      </option>
+                      </label>
                     ))}
-                  </select>
+                  </div>
                   <div className="mt-4">
                     <h4 className={`${typography.h4} text-slate-900 mb-2`}>{t.selectIndicators}</h4>
                     <div className="space-y-2">
