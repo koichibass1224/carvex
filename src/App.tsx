@@ -1023,55 +1023,59 @@ const GlobalEconomyDashboard = () => {
                       ))}
                     </div>
                   </div>
-                  {radarData ? (
-                    <Radar
-                      data={radarData}
-                      options={{
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                          r: {
-                            ticks: {
-                              display: false,
-                            },
-                            grid: {
-                              color: '#E2E8F0',
-                            },
-                            angleLines: {
-                              color: '#CBD5F5',
-                            },
-                            pointLabels: {
-                              color: '#0F172A',
-                              font: {
-                                size: 11,
-                                weight: '600',
+                  <p className={`${typography.caption} text-slate-500 mb-3`}>
+                    {t.indicatorGdp} / {t.indicatorInflation} / {t.indicatorGrowth} / {t.indicatorUnemployment} / {t.indicatorPopulation}
+                  </p>
+                  <div className="h-80">
+                    {radarData ? (
+                      <Radar
+                        data={radarData}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          scales: {
+                            r: {
+                              ticks: {
+                                display: false,
+                              },
+                              grid: {
+                                color: '#E2E8F0',
+                              },
+                              angleLines: {
+                                color: '#CBD5F5',
+                              },
+                              pointLabels: {
+                                color: '#0F172A',
+                                font: {
+                                  size: 11,
+                                  weight: '600',
+                                },
                               },
                             },
                           },
-                        },
-                        plugins: {
-                          legend: {
-                            position: 'bottom',
-                            labels: {
-                              usePointStyle: true,
-                              boxWidth: 8,
-                              color: '#475569',
-                              padding: 16,
+                          plugins: {
+                            legend: {
+                              position: 'bottom',
+                              labels: {
+                                usePointStyle: true,
+                                boxWidth: 8,
+                                color: '#475569',
+                                padding: 16,
+                              },
+                            },
+                            tooltip: {
+                              backgroundColor: '#0F172A',
+                              titleColor: '#F8FAFC',
+                              bodyColor: '#E2E8F0',
+                              padding: 10,
                             },
                           },
-                          tooltip: {
-                            backgroundColor: '#0F172A',
-                            titleColor: '#F8FAFC',
-                            bodyColor: '#E2E8F0',
-                            padding: 10,
-                          },
-                        },
-                      }}
-                      height={320}
-                    />
-                  ) : (
-                    <p className={`${typography.caption} text-slate-500`}>{t.noData}</p>
-                  )}
+                        }}
+                      />
+                    ) : (
+                      <p className={`${typography.caption} text-slate-500`}>{t.noData}</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1082,6 +1086,9 @@ const GlobalEconomyDashboard = () => {
                   <details key={ranking.key} className="rounded-lg border border-slate-200 bg-white/70 px-4 py-3">
                     <summary className="cursor-pointer text-sm font-semibold text-slate-800">
                       {ranking.label}
+                      <span className="ml-2 text-xs font-normal text-slate-500">
+                        {ranking.key === 'gdp' ? 'US$' : ranking.key === 'population' ? 'people' : ranking.key === 'exchange' ? 'LCU/USD' : '%'}
+                      </span>
                     </summary>
                     <div className="mt-3 space-y-2 text-sm text-slate-700">
                       {ranking.items.length ? (
