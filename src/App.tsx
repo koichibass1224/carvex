@@ -424,16 +424,51 @@ const GlobalEconomyDashboard = () => {
     return new Intl.NumberFormat('en-US', options).format(value);
   };
 
+  const getCacheKey = (prefix: string, countryCode: string, indicator: string, year?: string) =>
+    `${prefix}:${countryCode}:${indicator}:${year || 'latest'}`;
+
+  const getCached = <T,>(key: string): T | null => {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) {
+        return null;
+      }
+      return JSON.parse(raw) as T;
+    } catch (error) {
+      return null;
+    }
+  };
+
+  const setCached = <T,>(key: string, data: T) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+    } catch (error) {
+      // ignore cache write errors
+    }
+  };
+
   const fetchWorldBankSeries = async (countryCode: string, indicator: string): Promise<IndicatorSeries[]> => {
+    const cacheKey = getCacheKey('wb-series', countryCode, indicator);
+    const cached = getCached<IndicatorSeries[]>(cacheKey);
+    if (cached) {
+      return cached;
+    }
     const response = await fetch(
       `https://api.worldbank.org/v2/country/${countryCode}/indicator/${indicator}?format=json`
     );
     const payload = await response.json();
     const rows = (payload?.[1] ?? []) as IndicatorSeries[];
-    return rows.filter((entry) => entry?.date);
+    const filtered = rows.filter((entry) => entry?.date);
+    setCached(cacheKey, filtered);
+    return filtered;
   };
 
   const fetchEurostatInflation = async (geoCode: string, year?: string): Promise<IndicatorData> => {
+    const cacheKey = getCacheKey('eurostat-hicp', geoCode, 'prc_hicp_manr', year);
+    const cached = getCached<IndicatorData>(cacheKey);
+    if (cached) {
+      return cached;
+    }
     const response = await fetch(
       `https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_manr?geo=${geoCode}&coicop=CP00&unit=RCH_M`
     );
@@ -445,7 +480,9 @@ const GlobalEconomyDashboard = () => {
     const latestTime = filteredKeys.sort().at(-1);
     const latestPosition = latestTime ? timeIndex[latestTime] : null;
     const value = latestPosition !== null ? valueIndex[latestPosition] ?? null : null;
-    return { value, date: latestTime };
+    const result = { value, date: latestTime };
+    setCached(cacheKey, result);
+    return result;
   };
 
   const pickIndicatorForYear = (series: IndicatorSeries[], year?: string): IndicatorData => {
