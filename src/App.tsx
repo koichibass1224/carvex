@@ -36,8 +36,8 @@ type IndicatorSeries = {
 type CountryMetrics = {
   name: string;
   gdp: IndicatorData;
+  growth: IndicatorData;
   inflation: IndicatorData;
-  unemployment: IndicatorData;
   population?: IndicatorData;
   eurostatInflation: IndicatorData;
 };
@@ -143,12 +143,12 @@ const GlobalEconomyDashboard = () => {
       overviewTitle: 'グローバル経済サマリー',
       overviewDescription: '主要EU経済圏のGDP・成長率・物価指標を横断的に可視化します。',
       averageGdp: '平均GDP（現行米ドル）',
-      averageUnemployment: '平均失業率',
+      averageGrowth: '平均GDP成長率',
       averageInflation: '平均インフレ（CPI）',
       yoy: '前年比',
       lastUpdate: '最終更新',
       gdpLeaders: 'GDP上位',
-      unemploymentRanking: '失業率ランキング',
+      fastestGrowth: '成長率上位',
       countryOverview: '国別の概要',
       growthTitle: '成長・生産',
       growthDescription: 'World Bank の年次GDP成長率とGDP規模を確認できます。',
@@ -169,7 +169,7 @@ const GlobalEconomyDashboard = () => {
       eurostatIndicators: 'Eurostat HICP（月次）',
       latestHicp: '最新HICP変化率',
       referenceMonth: '対象月',
-      metricsNote: '指標は Eurostat の年次データを使用しています。',
+      metricsNote: '指標は World Bank（年次）と Eurostat（月次）を統合しています。',
       dataSources: 'データソース',
       reportInfo: 'レポート情報',
       lastRefreshed: '最終更新',
@@ -210,12 +210,12 @@ const GlobalEconomyDashboard = () => {
       overviewTitle: 'Global Economic Pulse',
       overviewDescription: 'A harmonized snapshot of GDP, growth, and inflation metrics across major EU economies.',
       averageGdp: 'Average GDP (current US$)',
-      averageUnemployment: 'Average unemployment rate',
+      averageGrowth: 'Average GDP Growth',
       averageInflation: 'Average Inflation (CPI)',
       yoy: 'YoY',
       lastUpdate: 'Last update',
       gdpLeaders: 'GDP Leaders',
-      unemploymentRanking: 'Unemployment Ranking',
+      fastestGrowth: 'Fastest Growth',
       countryOverview: 'Country-by-Country Overview',
       growthTitle: 'Growth & Output',
       growthDescription: 'Annual GDP growth and current GDP size from the World Bank database.',
@@ -236,7 +236,7 @@ const GlobalEconomyDashboard = () => {
       eurostatIndicators: 'Eurostat HICP (monthly %)',
       latestHicp: 'Latest HICP change',
       referenceMonth: 'Reference month',
-      metricsNote: 'Metrics use Eurostat annual datasets.',
+      metricsNote: 'Metrics are compiled from World Bank (annual) and Eurostat (monthly) datasets.',
       dataSources: 'Data Sources',
       reportInfo: 'Report Information',
       lastRefreshed: 'Last Refreshed',
@@ -427,17 +427,13 @@ const GlobalEconomyDashboard = () => {
   const getCacheKey = (prefix: string, countryCode: string, indicator: string, year?: string) =>
     `${prefix}:${countryCode}:${indicator}:${year || 'latest'}`;
 
-  const getCached = <T,>(key: string, ttlMs: number): T | null => {
+  const getCached = <T,>(key: string): T | null => {
     try {
       const raw = localStorage.getItem(key);
       if (!raw) {
         return null;
       }
-      const parsed = JSON.parse(raw) as { timestamp: number; data: T };
-      if (!parsed?.timestamp || Date.now() - parsed.timestamp > ttlMs) {
-        return null;
-      }
-      return parsed.data;
+      return JSON.parse(raw) as T;
     } catch (error) {
       return null;
     }
@@ -445,7 +441,7 @@ const GlobalEconomyDashboard = () => {
 
   const setCached = <T,>(key: string, data: T) => {
     try {
-      localStorage.setItem(key, JSON.stringify({ timestamp: Date.now(), data }));
+      localStorage.setItem(key, JSON.stringify(data));
     } catch (error) {
       // ignore cache write errors
     }
@@ -453,7 +449,7 @@ const GlobalEconomyDashboard = () => {
 
   const fetchWorldBankSeries = async (countryCode: string, indicator: string): Promise<IndicatorSeries[]> => {
     const cacheKey = getCacheKey('wb-series', countryCode, indicator);
-    const cached = getCached<IndicatorSeries[]>(cacheKey, 1000 * 60 * 60 * 24 * 180);
+    const cached = getCached<IndicatorSeries[]>(cacheKey);
     if (cached) {
       return cached;
     }
@@ -467,29 +463,26 @@ const GlobalEconomyDashboard = () => {
     return filtered;
   };
 
-  const fetchEurostatSeries = async (
-    dataset: string,
-    params: Record<string, string>,
-    geo: string
-  ): Promise<IndicatorSeries[]> => {
-    const query = new URLSearchParams({ ...params, geo }).toString();
-    const cacheKey = getCacheKey('eurostat-series', geo, dataset, params.unit || params.na_item);
-    const cached = getCached<IndicatorSeries[]>(cacheKey, 1000 * 60 * 60 * 24 * 30);
+  const fetchEurostatInflation = async (geoCode: string, year?: string): Promise<IndicatorData> => {
+    const cacheKey = getCacheKey('eurostat-hicp', geoCode, 'prc_hicp_manr', year);
+    const cached = getCached<IndicatorData>(cacheKey);
     if (cached) {
       return cached;
     }
     const response = await fetch(
-      `https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/${dataset}?${query}`
+      `https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/prc_hicp_manr?geo=${geoCode}&coicop=CP00&unit=RCH_M`
     );
     const payload = await response.json();
     const timeIndex = (payload?.dimension?.time?.category?.index ?? {}) as Record<string, number>;
     const valueIndex = (payload?.value ?? {}) as Record<number, number>;
-    const series = Object.entries(timeIndex).map(([date, idx]) => ({
-      date,
-      value: valueIndex[idx] ?? null,
-    }));
-    setCached(cacheKey, series);
-    return series;
+    const timeKeys = Object.keys(timeIndex);
+    const filteredKeys = year ? timeKeys.filter((key) => key.startsWith(year)) : timeKeys;
+    const latestTime = filteredKeys.sort().at(-1);
+    const latestPosition = latestTime ? timeIndex[latestTime] : null;
+    const value = latestPosition !== null ? valueIndex[latestPosition] ?? null : null;
+    const result = { value, date: latestTime };
+    setCached(cacheKey, result);
+    return result;
   };
 
   const pickIndicatorForYear = (series: IndicatorSeries[], year?: string): IndicatorData => {
@@ -512,28 +505,32 @@ const GlobalEconomyDashboard = () => {
         setErrorMessage('');
         const results = await Promise.all(
           eurostatCountries.map(async (country) => {
-            const [gdpSeries, inflationSeries, unemploymentSeries] = await Promise.all([
-              fetchEurostatSeries('nama_10_gdp', { na_item: 'B1GQ', unit: 'CP_MEUR' }, country.eurostatCode),
-              fetchEurostatSeries('prc_hicp_aind', { coicop: 'CP00', unit: 'I15' }, country.eurostatCode),
-              fetchEurostatSeries('une_rt_a', { sex: 'T', age: 'TOTAL', unit: 'PC_ACT' }, country.eurostatCode),
+            const [gdpSeries, growthSeries, inflationSeries, populationSeries] = await Promise.all([
+              fetchWorldBankSeries(country.wbCode, worldBankIndicators.gdp),
+              fetchWorldBankSeries(country.wbCode, worldBankIndicators.growth),
+              fetchWorldBankSeries(country.wbCode, worldBankIndicators.inflation),
+              fetchWorldBankSeries(country.wbCode, worldBankIndicators.population),
             ]);
             const year = selectedYear || undefined;
             const gdp = pickIndicatorForYear(gdpSeries, year);
+            const growth = pickIndicatorForYear(growthSeries, year);
             const inflation = pickIndicatorForYear(inflationSeries, year);
-            const unemployment = pickIndicatorForYear(unemploymentSeries, year);
+            const population = pickIndicatorForYear(populationSeries, year);
+            const eurostatInflation = await fetchEurostatInflation(country.eurostatCode, year);
 
             return {
               name: country.name,
               gdp,
+              growth,
               inflation,
-              unemployment,
-              eurostatInflation: inflation,
+              population,
+              eurostatInflation,
             };
           })
         );
 
         if (!yearOptions.length && results.length) {
-          const available = await fetchEurostatSeries('nama_10_gdp', { na_item: 'B1GQ', unit: 'CP_MEUR' }, eurostatCountries[0].eurostatCode);
+          const available = await fetchWorldBankSeries(worldBankCountries[0].wbCode, worldBankIndicators.gdp);
           const uniqueYears = Array.from(new Set(available.map((entry) => entry.date))).sort((a, b) => Number(b) - Number(a));
           setYearOptions(uniqueYears.slice(0, 12));
           if (!selectedYear && uniqueYears.length) {
@@ -636,13 +633,13 @@ const GlobalEconomyDashboard = () => {
     }
     const isNumber = (value: number | null): value is number => value !== null;
     const gdpValues = eurostatMetrics.map((country) => country.gdp.value).filter(isNumber);
-    const unemploymentValues = eurostatMetrics.map((country) => country.unemployment.value).filter(isNumber);
+    const growthValues = eurostatMetrics.map((country) => country.growth.value).filter(isNumber);
     const inflationValues = eurostatMetrics.map((country) => country.inflation.value).filter(isNumber);
     const average = (values: number[]) => (values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null);
 
     return {
       averageGdp: average(gdpValues),
-      averageGrowth: average(unemploymentValues),
+      averageGrowth: average(growthValues),
       averageInflation: average(inflationValues),
       lastUpdated: eurostatMetrics.map((country) => country.gdp.date).filter(Boolean).sort().at(-1),
     };
@@ -733,25 +730,47 @@ const GlobalEconomyDashboard = () => {
             GDP: {formatNumber(country.gdp.value, { notation: 'compact' })}
           </span>
           <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-            country.unemployment.value !== null && country.unemployment.value > 10 ? 'text-rose-600 bg-rose-50' : 'text-emerald-600 bg-emerald-50'
+            country.growth.value !== null && country.growth.value < 0 ? 'text-rose-600 bg-rose-50' : 'text-emerald-600 bg-emerald-50'
           }`}>
-            {formatNumber(country.unemployment.value, { maximumFractionDigits: 1 })}%
+            {formatNumber(country.growth.value, { maximumFractionDigits: 1 })}%
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
+          <h4 className={`${typography.h4} text-slate-900 mb-3`}>{t.worldBankIndicators}</h4>
+          <div className="space-y-2">
+            <p className={`${typography.body} text-slate-700`}>
+              GDP (current US$): <span className="font-medium text-slate-900">{formatNumber(country.gdp.value, { notation: 'compact' })}</span>
+            </p>
+            <p className={`${typography.body} text-slate-700`}>
+              {t.indicatorGdpPerCapita}: <span className="font-medium text-slate-900">
+                {country.gdp.value && country.population?.value
+                  ? formatNumber(country.gdp.value / country.population.value, { notation: 'compact' })
+                  : 'N/A'}
+              </span>
+            </p>
+            <p className={`${typography.body} text-slate-700`}>
+              GDP Growth (annual %): <span className="font-medium text-slate-900">{formatNumber(country.growth.value, { maximumFractionDigits: 1 })}%</span>
+            </p>
+            <p className={`${typography.body} text-slate-700`}>
+              CPI Inflation (annual %): <span className="font-medium text-slate-900">{formatNumber(country.inflation.value, { maximumFractionDigits: 1 })}%</span>
+            </p>
+          </div>
+        </div>
         <div className={`${colors.secondary[50]} ${borderRadius.md} ${spacing.md} ${shadows.sm} border border-slate-100`}>
           <h4 className={`${typography.h4} text-slate-900 mb-3`}>{t.eurostatIndicators}</h4>
           <div className="space-y-2">
             <p className={`${typography.body} text-slate-700`}>
-              GDP (current prices, MEUR): <span className="font-medium text-slate-900">{formatNumber(country.gdp.value, { notation: 'compact' })}</span>
+              {t.latestHicp}: <span className="font-medium text-slate-900">
+                {country.eurostatInflation.value === null
+                  ? 'N/A'
+                  : `${formatNumber(country.eurostatInflation.value, { maximumFractionDigits: 1 })}%`}
+              </span>
             </p>
-            <p className={`${typography.body} text-slate-700`}>
-              {t.indicatorUnemployment}: <span className="font-medium text-slate-900">{formatNumber(country.unemployment.value, { maximumFractionDigits: 1 })}%</span>
-            </p>
-            <p className={`${typography.body} text-slate-700`}>
-              CPI Inflation (annual %): <span className="font-medium text-slate-900">{formatNumber(country.inflation.value, { maximumFractionDigits: 1 })}%</span>
+            <p className={`${typography.caption} text-slate-500`}>
+              {t.referenceMonth}: {country.eurostatInflation.date || 'N/A'}
             </p>
           </div>
         </div>
@@ -768,9 +787,9 @@ const GlobalEconomyDashboard = () => {
     </div>
   );
 
-  const rankingData = useMemo<{ gdp: RankingItem[]; unemployment: RankingItem[]; inflation: RankingItem[] }>(() => {
+  const rankingData = useMemo<{ gdp: RankingItem[]; growth: RankingItem[]; inflation: RankingItem[] }>(() => {
     if (!eurostatMetrics.length) {
-      return { gdp: [], unemployment: [], inflation: [] };
+      return { gdp: [], growth: [], inflation: [] };
     }
 
     const gdp = [...eurostatMetrics]
@@ -781,12 +800,12 @@ const GlobalEconomyDashboard = () => {
         value: `${formatNumber(country.gdp.value, { notation: 'compact' })}`,
       }));
 
-    const unemployment = [...eurostatMetrics]
-      .filter((country) => country.unemployment.value !== null)
-      .sort((a, b) => b.unemployment.value - a.unemployment.value)
+    const growth = [...eurostatMetrics]
+      .filter((country) => country.growth.value !== null)
+      .sort((a, b) => b.growth.value - a.growth.value)
       .map((country) => ({
         name: country.name,
-        value: `${formatNumber(country.unemployment.value, { maximumFractionDigits: 1 })}%`,
+        value: `${formatNumber(country.growth.value, { maximumFractionDigits: 1 })}%`,
       }));
 
     const inflation = [...eurostatMetrics]
@@ -797,7 +816,7 @@ const GlobalEconomyDashboard = () => {
         value: `${formatNumber(country.inflation.value, { maximumFractionDigits: 1 })}%`,
       }));
 
-    return { gdp, unemployment, inflation };
+    return { gdp, growth, inflation };
   }, [eurostatMetrics]);
 
   const indicatorLabelMap: Record<string, string> = {
@@ -967,7 +986,7 @@ const GlobalEconomyDashboard = () => {
       case 'eurostat': {
         const eurostatRankings = [
           { key: 'gdp', title: t.gdpLeaders, items: rankingData.gdp },
-          { key: 'unemployment', title: t.unemploymentRanking, items: rankingData.unemployment },
+          { key: 'growth', title: t.fastestGrowth, items: rankingData.growth },
           { key: 'inflation', title: t.inflationRanking, items: rankingData.inflation },
         ];
         const filteredEurostatCountries = eurostatCountries.filter((country) =>
@@ -993,10 +1012,10 @@ const GlobalEconomyDashboard = () => {
                   icon={<Globe2 className="w-5 h-5 text-blue-600" />}
                 />
                 <MetricCard
-                  title={t.averageUnemployment}
+                  title={t.averageGrowth}
                   value={summary ? `${formatNumber(summary.averageGrowth, { maximumFractionDigits: 1 })}%` : 'N/A'}
                   change={t.yoy}
-                  trend="negative"
+                  trend="positive"
                   icon={<TrendingUp className="w-5 h-5 text-blue-600" />}
                 />
                 <MetricCard
